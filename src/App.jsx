@@ -108,6 +108,7 @@ function App() {
         
         <Route path="/" element={<ProtectedRoute><InternalLayout isAdmin={isAdmin} adminOverride={adminOverride} setAdminOverride={setAdminOverride} /></ProtectedRoute>}>
           <Route index element={<POS />} />
+          <Route path="pos" element={<POS />} />
           <Route path="reservations" element={<Reservations />} />
           
           <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
@@ -119,6 +120,7 @@ function App() {
           <Route path="club" element={<AdminRoute><Club /></AdminRoute>} />
           <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
