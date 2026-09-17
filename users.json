@@ -1,0 +1,11 @@
+{"users": [
+{
+  "localId": "Erjdk2UMUgTu9GIbrn5tmZfQnlv1",
+  "email": "amal@majolica.com",
+  "emailVerified": false,
+  "passwordHash": "BtiVwifVNOGSTyBF4+cSx4tLk/oLy8yX7LrecY5P6A7QQBepEGtzN2CGFbKCiOKcVSQMvEHtbKu8K3f7IkCmYg==",
+  "salt": "l/popYOf52S15A==",
+  "lastSignedInAt": "1788985846191",
+  "createdAt": "1788985846191",
+  "providerUserInfo": []
+}]}
