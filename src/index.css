@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-secondary min-h-screen font-sans;
+    background-color: #FDF8F9;
+    background-image: radial-gradient(circle at top right, #fff, #FDF8F9 50%, #F5EAEF 100%);
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/90 backdrop-blur-md border border-rose-900/5 rounded-2xl shadow-sm hover:shadow-md transition-shadow;
+  }
+  
+  .glass-panel {
+    @apply bg-white/95 backdrop-blur-sm border-r border-rose-900/5 shadow-sm;
+  }
+  
+  .btn {
+    @apply px-6 py-3 rounded-xl font-semibold cursor-pointer transition-all duration-300 flex items-center justify-center gap-2;
+  }
+  
+  .btn-primary {
+    @apply bg-secondary text-white hover:bg-black shadow-md shadow-black/10;
+  }
+
+  .btn-primary:disabled {
+    @apply bg-gray-200 text-gray-400 cursor-not-allowed shadow-none hover:bg-gray-200;
+  }
+  
+  .btn-danger {
+    @apply bg-accent/10 text-accent hover:bg-accent hover:text-white border border-accent/20;
+  }
+
+  .input-group label {
+    @apply block mb-2 text-secondary/80 font-semibold text-sm uppercase tracking-wide;
+  }
+
+  .input-group input, .input-group select {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-secondary focus:border-secondary focus:ring-2 focus:ring-secondary/20 focus:outline-none transition-all;
+  }
+  
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 no-underline transition-all duration-300 font-medium;
+  }
+  
+  .nav-item:hover, .nav-item.active {
+    @apply bg-secondary text-white shadow-md;
+  }
+
+  .page-header {
+    @apply text-3xl font-bold mb-6 text-secondary tracking-tight;
+  }
+}
+
+/* Print Styles for Receipt */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print-area, #receipt-print-area * {
+    visibility: visible;
+  }
+  #receipt-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm; /* Standard thermal receipt width */
+    margin: 0;
+    padding: 0;
+  }
+}
