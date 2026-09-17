@@ -14,6 +14,8 @@ dist-ssr
 server/.wwebjs_auth/
 server/.wwebjs_cache/
 server/node_modules/
+release-apk/
+scratch/
 
 # Editor directories and files
 .vscode/*
