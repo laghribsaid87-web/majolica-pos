@@ -19,23 +19,52 @@ const boldOff = ESC + "E" + String.fromCharCode(0);
 const sizeDouble = GS + "!" + String.fromCharCode(0x11);
 const sizeNormal = GS + "!" + String.fromCharCode(0x00);
 
-export const printTicketTCP = async (printerIp, ticketData) => {
+export const printTicketTCP = async (printerIp, ticketInfo) => {
   if (!printerIp) {
     throw new Error("L'adresse IP dyal l'imprimante makhasshach tkon khawya.");
   }
 
+  const { shopName, shopAddress, shopPhone, employee, clientName, cart, total, amountReceived, change, date } = ticketInfo;
+
+  // Format date
+  const pad = (n) => n.toString().padStart(2, '0');
+  const dateStr = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
   // Formatting the payload
   let payload = INIT;
   
-  // Example of building the ticket
-  payload += alignCenter + boldOn + sizeDouble + "MAJOLICA POS\n" + sizeNormal + boldOff + "\n";
-  payload += alignLeft + "--------------------------------\n";
+  // Header
+  payload += alignCenter + boldOn + sizeDouble + (shopName || "MAJOLICA") + "\n" + sizeNormal + boldOff;
+  if (shopAddress) payload += alignCenter + shopAddress + "\n";
+  if (shopPhone) payload += alignCenter + "Tel: " + shopPhone + "\n";
+  payload += "\n";
   
-  // Add the dynamic ticket data (items, total, etc)
-  payload += ticketData + "\n";
+  // Info
+  payload += alignLeft + `Date: ${dateStr}  Heure: ${timeStr}\n`;
+  if (employee) payload += `Servi par: ${employee}\n`;
+  if (clientName) payload += `Client: ${clientName}\n`;
   
   payload += "--------------------------------\n";
-  payload += alignCenter + "Merci pour votre visite!\n\n\n\n\n";
+  
+  // Items
+  cart.forEach(item => {
+    const qtyPriceStr = `${item.qty}x ${item.name}`;
+    const totalItemStr = item.totalPrice;
+    let spaceCount = 32 - qtyPriceStr.length - totalItemStr.length;
+    if (spaceCount < 1) spaceCount = 1; // Fallback spacing
+    payload += qtyPriceStr + " ".repeat(spaceCount) + totalItemStr + "\n";
+  });
+  
+  payload += "--------------------------------\n";
+  
+  // Totals
+  payload += boldOn + sizeDouble + `TOTAL: ${total.toFixed(2)} MAD\n` + sizeNormal + boldOff;
+  payload += `Especes: ${amountReceived} MAD\n`;
+  payload += `Rendu: ${change.toFixed(2)} MAD\n`;
+  
+  payload += "--------------------------------\n";
+  payload += alignCenter + boldOn + "Merci pour votre visite!\n" + boldOff + "\n\n\n\n\n";
   
   // Open drawer and cut paper
   payload += OPEN_DRAWER;
