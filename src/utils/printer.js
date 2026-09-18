@@ -42,18 +42,20 @@ export const printTicketTCP = async (printerIp, ticketData) => {
   payload += CUT_PAPER;
 
   try {
-    const socket = new TcpSocket();
-    await socket.connect({
-      host: printerIp,
-      port: 9100 // Default TCP port for thermal printers
+    const { client } = await TcpSocket.connect({
+      ipAddress: printerIp,
+      port: 9100
     });
     
     // Send the raw ESC/POS payload
-    await socket.write({ data: payload });
+    await TcpSocket.send({ 
+      client: client,
+      data: payload 
+    });
     
     // Give it a small delay before disconnecting
     setTimeout(async () => {
-      await socket.disconnect();
+      await TcpSocket.disconnect({ client: client });
     }, 500);
     
     return { success: true, message: "T'imprima b naja7!" };
