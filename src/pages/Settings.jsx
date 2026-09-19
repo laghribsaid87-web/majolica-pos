@@ -280,7 +280,8 @@ const Settings = () => {
 
         {/* TAB: Admin & Securite */}
         {activeTab === 'admin' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="glass rounded-2xl p-6 border border-gray-100">
             <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
@@ -457,6 +458,7 @@ const Settings = () => {
               </button>
             </div>
           </form>
+        </div>
         </div>
         )}
 
