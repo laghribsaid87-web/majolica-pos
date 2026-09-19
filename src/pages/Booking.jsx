@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
-import { fetchReservations, saveReservation, fetchEmployees, fetchProducts, fetchAdminPhone } from "../services/api";
+import { fetchReservations, saveReservation, subscribeToEmployees, subscribeToProducts, fetchAdminPhone } from "../services/api";
 import { Check, ChevronRight, CheckCircle, ArrowLeft, X, Star, Clock, MessageCircle, ShoppingBag, ChevronUp, ChevronDown, Sparkles } from "lucide-react";
 
 const Booking = () => {
@@ -21,19 +21,21 @@ const Booking = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetchReservations().then(setReservations),
-      fetchEmployees().then(setEmployees),
-      fetchProducts().then(data => {
-        // Hide Carte Club from online booking services
-        const bookableProducts = data.filter(p => p.id !== 36);
-        setProducts(bookableProducts);
-        if (bookableProducts.length > 0) setActiveCategory(bookableProducts[0].category);
-      }),
-      fetchAdminPhone().then(setAdminPhone)
-    ]).finally(() => {
+    fetchReservations().then(setReservations);
+    fetchAdminPhone().then(setAdminPhone);
+
+    const unsubEmp = subscribeToEmployees(setEmployees);
+    const unsubProd = subscribeToProducts(data => {
+      const bookableProducts = data.filter(p => p.id !== 36);
+      setProducts(bookableProducts);
+      setActiveCategory(prev => prev || (bookableProducts.length > 0 ? bookableProducts[0].category : ""));
       setIsLoading(false);
     });
+
+    return () => {
+      unsubEmp();
+      unsubProd();
+    };
   }, []);
 
   const categories = [...new Set(products.map(p => p.category))];
@@ -226,18 +228,25 @@ const Booking = () => {
             </div>
             <div className="px-4 py-4 space-y-3">
               {isLoading ? (
-                [1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="w-full bg-white rounded-2xl p-4 flex justify-between items-center border-2 border-gray-100 shadow-sm animate-pulse">
-                    <div className="flex-1 pr-3">
-                      <div className="h-4 bg-gray-200 rounded-md w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-100 rounded-md w-1/4"></div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="h-4 bg-gray-200 rounded-md w-10"></div>
-                      <div className="w-7 h-7 rounded-full bg-gray-100"></div>
-                    </div>
+                <>
+                  <div className="text-center pb-2">
+                    <p className="text-sm font-bold text-rose-500 animate-pulse flex items-center justify-center gap-2">
+                      <Sparkles size={16} /> Chargement des prestations...
+                    </p>
                   </div>
-                ))
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="w-full bg-white rounded-2xl p-4 flex justify-between items-center border-2 border-gray-100 shadow-sm animate-pulse">
+                      <div className="flex-1 pr-3">
+                        <div className="h-4 bg-gray-200 rounded-md w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-100 rounded-md w-1/4"></div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="h-4 bg-gray-200 rounded-md w-10"></div>
+                        <div className="w-7 h-7 rounded-full bg-gray-100"></div>
+                      </div>
+                    </div>
+                  ))}
+                </>
               ) : (
                 filteredProducts.map(product => {
                   const isSelected = selectedServices.includes(product.id);

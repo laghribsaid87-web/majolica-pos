@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { Calendar as CalendarIcon, Clock, Sparkles, Plus, X, CheckSquare, Square, Trash2, Phone, ShoppingCart, List, User } from 'lucide-react';
-import { fetchReservations, saveReservation, updateReservation, deleteReservation, fetchEmployees, fetchProducts } from '../services/api';
+import { fetchReservations, saveReservation, updateReservation, deleteReservation, subscribeToEmployees, subscribeToProducts } from '../services/api';
 
 const HOURS = Array.from({ length: 10 }).map((_, i) => `${(i + 11).toString().padStart(2, '0')}:00`);
 
@@ -26,14 +26,19 @@ const Reservations = () => {
   
   useEffect(() => {
     loadData();
-    fetchEmployees().then(setEmployees);
-    fetchProducts().then(data => {
+    const unsubEmp = subscribeToEmployees(setEmployees);
+    const unsubProd = subscribeToProducts((data) => {
       setProducts(data);
       if (data.length > 0) {
         const uniqueCats = [...new Set(data.map(p => p.category))];
         if (uniqueCats.length > 0) setActiveCategory(uniqueCats[0]);
       }
     });
+
+    return () => {
+      unsubEmp();
+      unsubProd();
+    };
   }, [isModalOpen]); // Reload when modal closes (after saving)
   
   // Generate next 7 days

@@ -127,6 +127,36 @@ export const fetchProducts = async () => {
   return _cache.products;
 };
 
+export const subscribeToProducts = (callback) => {
+  const MENU_VERSION = 'v3_full';
+  const localVersion = localStorage.getItem('majolica_menu_version');
+  let fallback = [];
+  
+  if (localVersion !== MENU_VERSION) {
+      fallback = [...PRODUCTS];
+      localStorage.setItem('majolica_products', JSON.stringify(fallback));
+      localStorage.setItem('majolica_menu_version', MENU_VERSION);
+  } else {
+      const prodStr = localStorage.getItem('majolica_products');
+      fallback = prodStr ? JSON.parse(prodStr) : PRODUCTS;
+  }
+  
+  callback(fallback.length > 0 ? fallback : PRODUCTS);
+
+  if (isFirebaseConfigured) {
+    const unsubscribe = onSnapshot(collection(db, 'products'), (snap) => {
+      if (!snap.empty) {
+        const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        localStorage.setItem('majolica_products', JSON.stringify(fetched));
+        _cache.products = fetched;
+        callback(fetched);
+      }
+    });
+    return unsubscribe;
+  }
+  return () => {};
+};
+
 export const saveProduct = async (product) => {
   product.id = product.id || Date.now().toString();
   _cache.products = null; // Invalidate cache
@@ -434,6 +464,25 @@ export const fetchEmployees = async () => {
   const empStr = localStorage.getItem('majolica_employees');
   _cache.employees = empStr ? JSON.parse(empStr) : DUMMY_EMPLOYEES;
   return _cache.employees;
+};
+
+export const subscribeToEmployees = (callback) => {
+  const empStr = localStorage.getItem('majolica_employees');
+  const localData = empStr ? JSON.parse(empStr) : DUMMY_EMPLOYEES;
+  callback(localData);
+
+  if (isFirebaseConfigured) {
+    const unsubscribe = onSnapshot(collection(db, 'employees'), (snap) => {
+      if (!snap.empty) {
+        const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        localStorage.setItem('majolica_employees', JSON.stringify(fetched));
+        _cache.employees = fetched;
+        callback(fetched);
+      }
+    });
+    return unsubscribe;
+  }
+  return () => {};
 };
 
 export const saveEmployee = async (employee) => {

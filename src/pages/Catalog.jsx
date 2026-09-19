@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Clock, Tags, Loader, AlertTriangle, RefreshCw, X } from 'lucide-react';
-import { fetchProducts, saveProduct, deleteProduct } from '../services/api';
+import { subscribeToProducts, saveProduct, deleteProduct } from '../services/api';
 
 const Catalog = () => {
   const [products, setProducts] = useState([]);
@@ -15,26 +15,17 @@ const Catalog = () => {
   const [newIcon, setNewIcon] = useState('💅');
   const [editingProductId, setEditingProductId] = useState(null);
 
-  const loadProducts = async () => {
+  useEffect(() => {
     setIsLoading(true);
-    setError('');
-    try {
-      const data = await fetchProducts();
+    const unsub = subscribeToProducts((data) => {
       if (data && Array.isArray(data)) {
         setProducts(data);
       } else {
-        setError('Les données reçues sont invalides.');
+        setProducts([]);
       }
-    } catch (err) {
-      console.error('Erreur chargement produits:', err);
-      setError(`Erreur: ${err.message}`);
-    } finally {
       setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadProducts();
+    });
+    return () => unsub();
   }, []);
 
   const handleSaveProduct = async () => {

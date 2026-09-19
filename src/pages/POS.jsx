@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Plus, Minus, Trash2, User, Wallet, Bell, X, Calendar } from 'lucide-react';
-import { saveOrder, fetchEmployees, fetchProducts, saveExpense, saveEmployee, fetchClubMembers, subscribeToNewOnlineReservations } from '../services/api';
+import { saveOrder, subscribeToEmployees, subscribeToProducts, saveExpense, saveEmployee, fetchClubMembers, subscribeToNewOnlineReservations } from '../services/api';
 import { printTicketTCP } from '../utils/printer';
 
 
@@ -70,20 +70,14 @@ const POS = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchEmployees().then(setEmployees);
-    fetchClubMembers().then(setClubMembers);
-    fetchProducts().then(data => {
+    const unsubEmp = subscribeToEmployees(setEmployees);
+    const unsubProd = subscribeToProducts(data => {
       setProducts(data);
-      if (data.length > 0) {
-        const uniqueCats = [...new Set(data.map(p => p.category))];
-        if (uniqueCats.length > 0) setActiveCategory(uniqueCats[0]);
-      }
+      setActiveCategory(prev => prev || (data.length > 0 ? data[0].category : ''));
     });
-  }, []);
+    fetchClubMembers().then(setClubMembers);
 
-  // Subscribe to new online reservations
-  useEffect(() => {
-    const unsub = subscribeToNewOnlineReservations((newRdv) => {
+    const unsubRes = subscribeToNewOnlineReservations((newRdv) => {
       setRdvNotif(newRdv);
       setNotifVisible(true);
       // Auto-dismiss after 15 seconds
