@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 // Pour configurer Firebase, vous devez créer un fichier .env.local à la racine du projet
@@ -25,6 +25,12 @@ if (isFirebaseConfigured) {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     auth = getAuth(app);
+    
+    // Activer la persistance hors-ligne de Firebase (Cache automatique des écritures)
+    enableIndexedDbPersistence(db).catch((err) => {
+      console.warn("Firebase persistence error:", err.code);
+    });
+
     console.log("🔥 Firebase connecté avec succès !");
   } catch (error) {
     console.error("Erreur d'initialisation Firebase:", error);
