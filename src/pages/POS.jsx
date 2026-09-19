@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Plus, Minus, Trash2, User, Wallet, Bell, X, Calendar } from 'lucide-react';
-import { saveOrder, subscribeToEmployees, subscribeToProducts, saveExpense, saveEmployee, fetchClubMembers, subscribeToNewOnlineReservations } from '../services/api';
+import { ShoppingCart, Plus, Minus, Trash2, User, Wallet, Bell, X, Calendar, Lock } from 'lucide-react';
+import { saveOrder, subscribeToEmployees, subscribeToProducts, saveExpense, saveEmployee, fetchClubMembers, subscribeToNewOnlineReservations, fetchSalonConfig } from '../services/api';
 import { printTicketTCP } from '../utils/printer';
 
 
@@ -23,6 +23,12 @@ const POS = () => {
   
   // Print Receipt State
   const [printData, setPrintData] = useState(null);
+
+  // Security
+  const [adminPin, setAdminPin] = useState('1234');
+  const [isPinPromptOpen, setIsPinPromptOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pendingAction, setPendingAction] = useState(null);
 
   // Online RDV Notification
   const [rdvNotif, setRdvNotif] = useState(null);
@@ -66,6 +72,11 @@ const POS = () => {
       setActiveCategory(prev => prev || (data.length > 0 ? data[0].category : ''));
     });
     fetchClubMembers().then(setClubMembers);
+    fetchSalonConfig().then(config => {
+      if (config && config.adminPin) {
+        setAdminPin(config.adminPin);
+      }
+    });
 
     const unsubRes = subscribeToNewOnlineReservations((newRdv) => {
       setRdvNotif(newRdv);
@@ -153,13 +164,41 @@ const POS = () => {
   };
 
   const updateQty = (id, delta) => {
-    setCart(cart.map(item => {
-      if (item.id === id) {
-        const newQty = item.qty + delta;
-        return newQty > 0 ? { ...item, qty: newQty } : null;
-      }
-      return item;
-    }).filter(Boolean));
+    if (delta < 0) {
+      requireAdminPin(() => {
+        setCart(cart.map(item => {
+          if (item.id === id) {
+            const newQty = item.qty + delta;
+            return newQty > 0 ? { ...item, qty: newQty } : null;
+          }
+          return item;
+        }).filter(Boolean));
+      });
+    } else {
+      setCart(cart.map(item => {
+        if (item.id === id) {
+          const newQty = item.qty + delta;
+          return newQty > 0 ? { ...item, qty: newQty } : null;
+        }
+        return item;
+      }).filter(Boolean));
+    }
+  };
+
+  const requireAdminPin = (actionFn) => {
+    setPendingAction(() => actionFn);
+    setPinInput('');
+    setIsPinPromptOpen(true);
+  };
+
+  const handlePinSubmit = () => {
+    if (pinInput === adminPin) {
+      setIsPinPromptOpen(false);
+      if (pendingAction) pendingAction();
+    } else {
+      alert("Code PIN incorrect. Seul le manager peut annuler cet article.");
+    }
+    setPinInput('');
   };
 
   const getItemPrice = (item) => {
@@ -501,7 +540,7 @@ const POS = () => {
           {cart.length > 0 && (
             <button 
               className="btn btn-danger w-full mt-3 h-14 active:scale-95 transition-transform"
-              onClick={() => setCart([])}
+              onClick={() => requireAdminPin(() => setCart([]))}
             >
               <Trash2 size={20} /> Annuler la commande
             </button>
@@ -638,11 +677,16 @@ const POS = () => {
                 <button 
                   className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-600 hover:text-accent active:scale-95 border border-gray-100"
                   onClick={() => {
-                    if (cart.find(i => i.id === selectedCartItem.id)?.qty === 1) {
-                      updateQty(selectedCartItem.id, -1);
-                      setSelectedCartItem(null);
+                    const item = cart.find(i => i.id === selectedCartItem.id);
+                    if (item && item.qty === 1) {
+                      requireAdminPin(() => {
+                        updateQty(selectedCartItem.id, -1);
+                        setSelectedCartItem(null);
+                      });
                     } else {
-                      updateQty(selectedCartItem.id, -1);
+                      requireAdminPin(() => {
+                        updateQty(selectedCartItem.id, -1);
+                      });
                     }
                   }}
                 >
@@ -664,8 +708,11 @@ const POS = () => {
               <button 
                 className="btn btn-danger h-14 text-lg w-full flex items-center justify-center gap-2 font-bold active:scale-95"
                 onClick={() => {
-                  updateQty(selectedCartItem.id, -(cart.find(i => i.id === selectedCartItem.id)?.qty || 0));
-                  setSelectedCartItem(null);
+                  requireAdminPin(() => {
+                    const item = cart.find(i => i.id === selectedCartItem.id);
+                    updateQty(selectedCartItem.id, -(item ? item.qty : 0));
+                    setSelectedCartItem(null);
+                  });
                 }}
               >
                 <Trash2 size={20} /> Supprimer l'article
@@ -675,6 +722,49 @@ const POS = () => {
                 onClick={() => setSelectedCartItem(null)}
               >
                 Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PIN Prompt Modal */}
+      {isPinPromptOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
+          <div className="glass w-full max-w-sm p-6 shadow-2xl rounded-3xl relative">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
+                <Lock size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-secondary text-center">Autorisation Requise</h2>
+              <p className="text-sm text-gray-500 text-center mt-2">Veuillez entrer le Code PIN Manager pour annuler cet article.</p>
+            </div>
+            
+            <div className="mb-6">
+              <input 
+                type="password" 
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                className="w-full text-center text-3xl tracking-[0.5em] font-black py-4 border-2 border-red-200 rounded-2xl focus:border-red-500 outline-none"
+                placeholder="••••"
+                maxLength="8"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handlePinSubmit()}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                className="btn bg-gray-200 text-gray-700 flex-1"
+                onClick={() => setIsPinPromptOpen(false)}
+              >
+                Retour
+              </button>
+              <button 
+                className="btn bg-red-600 text-white hover:bg-red-700 flex-1"
+                onClick={handlePinSubmit}
+              >
+                Valider
               </button>
             </div>
           </div>
