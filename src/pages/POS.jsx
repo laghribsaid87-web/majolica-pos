@@ -48,6 +48,7 @@ const POS = () => {
   const [ticketShopName, setTicketShopName] = useState(localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS');
   const [ticketAddress, setTicketAddress] = useState(localStorage.getItem('ticket_address') || 'Tanger, Maroc');
   const [ticketPhone, setTicketPhone] = useState(localStorage.getItem('ticket_phone') || '06 00 00 00 00');
+  const [ticketQrLink, setTicketQrLink] = useState(localStorage.getItem('ticket_qr_link') || '');
 
   const updateGlobalZoom = (val) => {
     setGlobalZoom(val);
@@ -63,6 +64,7 @@ const POS = () => {
   const updateTicketShopName = (val) => { setTicketShopName(val); localStorage.setItem('ticket_shop_name', val); };
   const updateTicketAddress = (val) => { setTicketAddress(val); localStorage.setItem('ticket_address', val); };
   const updateTicketPhone = (val) => { setTicketPhone(val); localStorage.setItem('ticket_phone', val); };
+  const updateTicketQrLink = (val) => { setTicketQrLink(val); localStorage.setItem('ticket_qr_link', val); };
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -237,6 +239,7 @@ const POS = () => {
           shopName: ticketShopName,
           shopAddress: ticketAddress,
           shopPhone: ticketPhone,
+          qrLink: ticketQrLink,
           employee: selectedEmployee,
           clientName: clientName,
           cart: processedCart,
@@ -370,6 +373,10 @@ const POS = () => {
                     <input 
                       type="text" value={ticketPhone} onChange={(e) => updateTicketPhone(e.target.value)} 
                       className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none" placeholder="Téléphone" 
+                    />
+                    <input 
+                      type="text" value={ticketQrLink} onChange={(e) => updateTicketQrLink(e.target.value)} 
+                      className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none" placeholder="Lien Réservation (QR Code)" 
                     />
                   </div>
                   <div className="pb-3 border-b border-gray-100 mb-3">

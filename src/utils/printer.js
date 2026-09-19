@@ -26,7 +26,25 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
     throw new Error("L'adresse IP dyal l'imprimante makhasshach tkon khawya.");
   }
 
-  const { shopName, shopAddress, shopPhone, employee, clientName, cart, total, amountReceived, change, date } = ticketInfo;
+  const { shopName, shopAddress, shopPhone, qrLink, employee, clientName, cart, total, amountReceived, change, date } = ticketInfo;
+
+  // Helper pour générer les commandes ESC/POS du QR Code (Model 2)
+  const getQrCodeCommands = (url) => {
+    if (!url) return '';
+    const dataLen = url.length + 3;
+    const pL = dataLen % 256;
+    const pH = Math.floor(dataLen / 256);
+    
+    let cmd = "";
+    cmd += alignCenter; // Centrer le QR code
+    cmd += GS + "(k" + String.fromCharCode(4, 0, 49, 65, 50, 0); // Model 2
+    cmd += GS + "(k" + String.fromCharCode(3, 0, 49, 67, 8); // Size 8
+    cmd += GS + "(k" + String.fromCharCode(3, 0, 49, 69, 48); // Error correction L
+    cmd += GS + "(k" + String.fromCharCode(pL, pH, 49, 80, 48) + url; // Data
+    cmd += GS + "(k" + String.fromCharCode(3, 0, 49, 81, 48); // Print
+    cmd += "\n\n";
+    return cmd;
+  };
 
   // Format date
   const pad = (n) => n.toString().padStart(2, '0');
@@ -72,8 +90,14 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
   payload += sizeNormal;
   
   payload += "------------------------------------------------\n\n";
-  payload += alignCenter + boldOn + sizeTall + "Merci pour votre visite!\n" + sizeNormal + boldOff + "\n\n\n\n\n\n\n";
+  payload += alignCenter + boldOn + sizeTall + "Merci pour votre visite!\n\n" + sizeNormal + boldOff;
   
+  if (qrLink) {
+    payload += getQrCodeCommands(qrLink);
+  }
+  
+  payload += "\n\n\n\n\n";
+
   // Open drawer and cut paper
   payload += OPEN_DRAWER;
   payload += CUT_PAPER;
