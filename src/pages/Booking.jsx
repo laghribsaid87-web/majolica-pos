@@ -18,17 +18,22 @@ const Booking = () => {
   const [adminPhone, setAdminPhone] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchReservations().then(setReservations);
-    fetchEmployees().then(setEmployees);
-    fetchProducts().then(data => {
-      // Hide Carte Club from online booking services
-      const bookableProducts = data.filter(p => p.id !== 36);
-      setProducts(bookableProducts);
-      if (bookableProducts.length > 0) setActiveCategory(bookableProducts[0].category);
+    Promise.all([
+      fetchReservations().then(setReservations),
+      fetchEmployees().then(setEmployees),
+      fetchProducts().then(data => {
+        // Hide Carte Club from online booking services
+        const bookableProducts = data.filter(p => p.id !== 36);
+        setProducts(bookableProducts);
+        if (bookableProducts.length > 0) setActiveCategory(bookableProducts[0].category);
+      }),
+      fetchAdminPhone().then(setAdminPhone)
+    ]).finally(() => {
+      setIsLoading(false);
     });
-    fetchAdminPhone().then(setAdminPhone);
   }, []);
 
   const categories = [...new Set(products.map(p => p.category))];
@@ -204,43 +209,62 @@ const Booking = () => {
           <div>
             <div className="sticky top-14 z-40 bg-white border-b border-gray-100">
               <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={"px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all shrink-0 " + (activeCategory === cat ? "bg-rose-500 text-white" : "bg-gray-100 text-gray-600")}
-                  >
-                    {cat}
-                  </button>
-                ))}
+                {isLoading ? (
+                  [1, 2, 3, 4].map(i => <div key={i} className="h-9 w-24 bg-gray-200 rounded-full animate-pulse shrink-0"></div>)
+                ) : (
+                  categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={"px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all shrink-0 " + (activeCategory === cat ? "bg-rose-500 text-white" : "bg-gray-100 text-gray-600")}
+                    >
+                      {cat}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
             <div className="px-4 py-4 space-y-3">
-              {filteredProducts.map(product => {
-                const isSelected = selectedServices.includes(product.id);
-                return (
-                  <button
-                    key={product.id}
-                    onClick={() => toggleService(product.id)}
-                    className={"w-full text-left rounded-2xl p-4 flex justify-between items-center transition-all duration-200 border-2 " + (isSelected ? "border-rose-400 bg-rose-50" : "border-gray-100 bg-white shadow-sm")}
-                  >
+              {isLoading ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="w-full bg-white rounded-2xl p-4 flex justify-between items-center border-2 border-gray-100 shadow-sm animate-pulse">
                     <div className="flex-1 pr-3">
-                      <div className={"font-bold text-base mb-1 " + (isSelected ? "text-rose-700" : "text-gray-800")}>{product.name}</div>
-                      <div className="text-gray-400 text-xs flex items-center gap-1">
-                        <Clock size={11} /> {product.duration} min
-                      </div>
+                      <div className="h-4 bg-gray-200 rounded-md w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-100 rounded-md w-1/4"></div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <div className={"font-black text-base " + (isSelected ? "text-rose-600" : "text-gray-700")}>
-                        {product.price.toFixed(0)} DH
-                      </div>
-                      <div className={"w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all " + (isSelected ? "bg-rose-500 border-rose-500 text-white" : "border-gray-200 text-gray-300")}>
-                        {isSelected ? <Check size={14} strokeWidth={3} /> : <span className="text-lg leading-none">+</span>}
-                      </div>
+                      <div className="h-4 bg-gray-200 rounded-md w-10"></div>
+                      <div className="w-7 h-7 rounded-full bg-gray-100"></div>
                     </div>
-                  </button>
-                );
-              })}
+                  </div>
+                ))
+              ) : (
+                filteredProducts.map(product => {
+                  const isSelected = selectedServices.includes(product.id);
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => toggleService(product.id)}
+                      className={"w-full text-left rounded-2xl p-4 flex justify-between items-center transition-all duration-200 border-2 " + (isSelected ? "border-rose-400 bg-rose-50" : "border-gray-100 bg-white shadow-sm")}
+                    >
+                      <div className="flex-1 pr-3">
+                        <div className={"font-bold text-base mb-1 " + (isSelected ? "text-rose-700" : "text-gray-800")}>{product.name}</div>
+                        <div className="text-gray-400 text-xs flex items-center gap-1">
+                          <Clock size={11} /> {product.duration} min
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className={"font-black text-base " + (isSelected ? "text-rose-600" : "text-gray-700")}>
+                          {product.price.toFixed(0)} DH
+                        </div>
+                        <div className={"w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all " + (isSelected ? "bg-rose-500 border-rose-500 text-white" : "border-gray-200 text-gray-300")}>
+                          {isSelected ? <Check size={14} strokeWidth={3} /> : <span className="text-lg leading-none">+</span>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
 
             {/* PROMO CARTE CLUB — soft feminine */}
