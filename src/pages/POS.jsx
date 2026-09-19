@@ -73,7 +73,11 @@ const POS = () => {
       // Auto-dismiss after 15 seconds
       setTimeout(() => setNotifVisible(false), 15000);
     });
-    return () => unsub();
+    return () => {
+      unsubEmp();
+      unsubProd();
+      unsubRes();
+    };
   }, []);
 
   useEffect(() => {
