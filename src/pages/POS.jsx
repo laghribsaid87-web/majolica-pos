@@ -44,11 +44,6 @@ const POS = () => {
   const [cartFooterScale, setCartFooterScale] = useState(parseFloat(localStorage.getItem('pos_cart_footer_scale')) || 1);
   const [itemScale, setItemScale] = useState(parseFloat(localStorage.getItem('pos_item_scale')) || 1);
   const [catScale, setCatScale] = useState(parseFloat(localStorage.getItem('pos_cat_scale')) || 1);
-  const [printerIp, setPrinterIp] = useState(localStorage.getItem('printer_ip') || '');
-  const [ticketShopName, setTicketShopName] = useState(localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS');
-  const [ticketAddress, setTicketAddress] = useState(localStorage.getItem('ticket_address') || 'Tanger, Maroc');
-  const [ticketPhone, setTicketPhone] = useState(localStorage.getItem('ticket_phone') || '06 00 00 00 00');
-  const [ticketQrLink, setTicketQrLink] = useState(localStorage.getItem('ticket_qr_link') || '');
 
   const updateGlobalZoom = (val) => {
     setGlobalZoom(val);
@@ -60,11 +55,6 @@ const POS = () => {
   const updateCartFooterScale = (val) => { setCartFooterScale(val); localStorage.setItem('pos_cart_footer_scale', val); };
   const updateItemScale = (val) => { setItemScale(val); localStorage.setItem('pos_item_scale', val); };
   const updateCatScale = (val) => { setCatScale(val); localStorage.setItem('pos_cat_scale', val); };
-  const updatePrinterIp = (val) => { setPrinterIp(val); localStorage.setItem('printer_ip', val); };
-  const updateTicketShopName = (val) => { setTicketShopName(val); localStorage.setItem('ticket_shop_name', val); };
-  const updateTicketAddress = (val) => { setTicketAddress(val); localStorage.setItem('ticket_address', val); };
-  const updateTicketPhone = (val) => { setTicketPhone(val); localStorage.setItem('ticket_phone', val); };
-  const updateTicketQrLink = (val) => { setTicketQrLink(val); localStorage.setItem('ticket_qr_link', val); };
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -230,10 +220,10 @@ const POS = () => {
         }));
 
         const ticketInfo = {
-          shopName: ticketShopName,
-          shopAddress: ticketAddress,
-          shopPhone: ticketPhone,
-          qrLink: ticketQrLink,
+          shopName: localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS',
+          shopAddress: localStorage.getItem('ticket_address') || 'Tanger, Maroc',
+          shopPhone: localStorage.getItem('ticket_phone') || '06 00 00 00 00',
+          qrLink: localStorage.getItem('ticket_qr_link') || '',
           employee: selectedEmployee,
           clientName: clientName,
           cart: processedCart,
@@ -341,38 +331,6 @@ const POS = () => {
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="pb-3 border-b border-gray-100 mb-3 bg-purple-50 p-3 rounded-xl border border-purple-100">
-                    <label className="text-sm font-black text-purple-700 flex justify-between mb-2">
-                      IP Imprimante (Tenda)
-                    </label>
-                    <input 
-                      type="text" 
-                      value={printerIp} 
-                      onChange={(e) => updatePrinterIp(e.target.value)} 
-                      className="w-full border-2 border-purple-200 rounded-lg px-3 py-2 text-sm font-mono text-center font-bold text-gray-700 focus:border-purple-500 outline-none" 
-                      placeholder="192.168.1.100" 
-                    />
-                    <p className="text-[10px] text-purple-500 font-medium mt-1 text-center">Laissez vide pour désactiver l'impression auto</p>
-                  </div>
-                  <div className="pb-3 border-b border-gray-100 mb-3 bg-blue-50 p-3 rounded-xl border border-blue-100 space-y-2">
-                    <label className="text-sm font-black text-blue-700 block mb-1">Ticket de caisse</label>
-                    <input 
-                      type="text" value={ticketShopName} onChange={(e) => updateTicketShopName(e.target.value)} 
-                      className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none" placeholder="Nom du magasin (ex: MAJOLICA)" 
-                    />
-                    <input 
-                      type="text" value={ticketAddress} onChange={(e) => updateTicketAddress(e.target.value)} 
-                      className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none" placeholder="Adresse" 
-                    />
-                    <input 
-                      type="text" value={ticketPhone} onChange={(e) => updateTicketPhone(e.target.value)} 
-                      className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none" placeholder="Téléphone" 
-                    />
-                    <input 
-                      type="text" value={ticketQrLink} onChange={(e) => updateTicketQrLink(e.target.value)} 
-                      className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none" placeholder="Lien Réservation (QR Code)" 
-                    />
-                  </div>
                   <div className="pb-3 border-b border-gray-100 mb-3">
                     <label className="text-sm font-black text-purple-600 flex justify-between">
                       Zoom Global (Toute l'App) <span>{Math.round(globalZoom * 100)}%</span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle } from 'lucide-react';
+import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer } from 'lucide-react';
 import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig } from '../services/api';
 
 const Settings = () => {
@@ -24,6 +24,13 @@ const Settings = () => {
   const [adminPin, setAdminPin] = useState('');
   const [isConfigSaved, setIsConfigSaved] = useState(false);
   const [posCustomMode, setPosCustomMode] = useState(localStorage.getItem('pos_custom_mode_enabled') === 'true');
+
+  const [printerIp, setPrinterIp] = useState(localStorage.getItem('printer_ip') || '');
+  const [ticketShopName, setTicketShopName] = useState(localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS');
+  const [ticketAddress, setTicketAddress] = useState(localStorage.getItem('ticket_address') || 'Tanger, Maroc');
+  const [ticketPhone, setTicketPhone] = useState(localStorage.getItem('ticket_phone') || '06 00 00 00 00');
+  const [ticketQrLink, setTicketQrLink] = useState(localStorage.getItem('ticket_qr_link') || '');
+  const [isPrinterSaved, setIsPrinterSaved] = useState(false);
 
   useEffect(() => {
     fetchAdminPhone().then(setAdminPhone);
@@ -52,6 +59,16 @@ const Settings = () => {
     });
     setIsConfigSaved(true);
     setTimeout(() => setIsConfigSaved(false), 3000);
+  };
+
+  const handleSavePrinterConfig = () => {
+    localStorage.setItem('printer_ip', printerIp);
+    localStorage.setItem('ticket_shop_name', ticketShopName);
+    localStorage.setItem('ticket_address', ticketAddress);
+    localStorage.setItem('ticket_phone', ticketPhone);
+    localStorage.setItem('ticket_qr_link', ticketQrLink);
+    setIsPrinterSaved(true);
+    setTimeout(() => setIsPrinterSaved(false), 3000);
   };
 
   const handleCreateAccount = async (e) => {
@@ -403,6 +420,67 @@ const Settings = () => {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* SECTION: Imprimante */}
+        <div className="glass rounded-2xl p-6 border border-gray-100 mt-6">
+          <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
+            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+              <Printer size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-secondary">Configuration Imprimante & Ticket</h2>
+              <p className="text-sm text-gray-500">Gérez l'impression automatique et l'en-tête du ticket de caisse.</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="font-bold text-gray-700 mb-2 border-b border-gray-100 pb-2">Réseau Imprimante (Tenda)</h3>
+              <div className="input-group">
+                <label>Adresse IP Imprimante</label>
+                <input 
+                  type="text" 
+                  value={printerIp} 
+                  onChange={(e) => setPrinterIp(e.target.value)} 
+                  className="input-field font-mono" 
+                  placeholder="Ex: 192.168.1.100" 
+                />
+                <p className="text-xs text-gray-400 mt-1">Laissez vide pour désactiver l'impression automatique TCP.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="font-bold text-gray-700 mb-2 border-b border-gray-100 pb-2">Informations Ticket</h3>
+              <div className="input-group">
+                <label>Nom du magasin</label>
+                <input type="text" value={ticketShopName} onChange={(e) => setTicketShopName(e.target.value)} className="input-field" placeholder="MAJOLICA POS" />
+              </div>
+              <div className="input-group">
+                <label>Adresse</label>
+                <input type="text" value={ticketAddress} onChange={(e) => setTicketAddress(e.target.value)} className="input-field" placeholder="Ex: Tanger, Maroc" />
+              </div>
+              <div className="input-group">
+                <label>Téléphone</label>
+                <input type="text" value={ticketPhone} onChange={(e) => setTicketPhone(e.target.value)} className="input-field" placeholder="Ex: 06 00 00 00 00" />
+              </div>
+              <div className="input-group">
+                <label>Lien Réservation (QR Code)</label>
+                <input type="text" value={ticketQrLink} onChange={(e) => setTicketQrLink(e.target.value)} className="input-field" placeholder="Ex: https://majolicabeauty.com/booking" />
+                <p className="text-xs text-gray-400 mt-1">Un code QR sera généré à la fin du ticket si ce champ est rempli.</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end">
+            <button 
+              onClick={handleSavePrinterConfig}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Save size={18} />
+              {isPrinterSaved ? 'Enregistré' : 'Sauvegarder Imprimante'}
+            </button>
+          </div>
         </div>
 
         {/* SECTION: Personnalisation Caisse */}
