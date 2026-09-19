@@ -224,6 +224,7 @@ const POS = () => {
           shopAddress: localStorage.getItem('ticket_address') || 'Tanger, Maroc',
           shopPhone: localStorage.getItem('ticket_phone') || '06 00 00 00 00',
           qrLink: localStorage.getItem('ticket_qr_link') || '',
+          paperSize: localStorage.getItem('printer_paper_size') || '80mm',
           employee: selectedEmployee,
           clientName: clientName,
           cart: processedCart,
@@ -676,9 +677,9 @@ const POS = () => {
         </div>
       )}
 
-      {/* Hidden Printable Receipt */}
+      {/* Hidden Printable Receipt (Browser Window.Print()) */}
       {printData && (
-        <div id="receipt-print-area" className="bg-white text-black p-4 text-xs font-mono hidden print:block" style={{ width: '80mm', margin: '0 auto' }}>
+        <div id="receipt-print-area" className="bg-white text-black p-4 text-xs font-mono hidden print:block" style={{ width: (localStorage.getItem('printer_paper_size') || '80mm'), margin: '0 auto' }}>
           <div className="text-center border-b border-black pb-4 mb-4">
             <img src="/logo1.jpg" alt="Majolica Logo" className="mx-auto h-12 mb-2 grayscale" />
             <div className="font-bold text-lg">MAJOLICA BEAUTY STUDIO</div>

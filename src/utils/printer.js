@@ -26,7 +26,10 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
     throw new Error("L'adresse IP dyal l'imprimante makhasshach tkon khawya.");
   }
 
-  const { shopName, shopAddress, shopPhone, qrLink, employee, clientName, cart, total, amountReceived, change, date } = ticketInfo;
+  const { shopName, shopAddress, shopPhone, qrLink, employee, clientName, cart, total, amountReceived, change, date, paperSize } = ticketInfo;
+
+  const maxWidth = paperSize === '58mm' ? 32 : 48;
+  const divider = "-".repeat(maxWidth) + "\n\n";
 
   // Helper pour générer les commandes ESC/POS du QR Code (Model 2)
   const getQrCodeCommands = (url) => {
@@ -67,20 +70,20 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
   if (clientName) payload += `Client: ${clientName}\n`;
   payload += sizeNormal;
   
-  payload += "------------------------------------------------\n\n";
+  payload += divider;
   
   // Items
   payload += sizeTall;
   cart.forEach(item => {
     const qtyPriceStr = `${item.qty}x ${item.name}`;
     const totalItemStr = item.totalPrice;
-    let spaceCount = 48 - qtyPriceStr.length - totalItemStr.length;
+    let spaceCount = maxWidth - qtyPriceStr.length - totalItemStr.length;
     if (spaceCount < 1) spaceCount = 1; // Fallback spacing
     payload += qtyPriceStr + " ".repeat(spaceCount) + totalItemStr + "\n\n";
   });
   payload += sizeNormal;
   
-  payload += "------------------------------------------------\n\n";
+  payload += divider;
   
   // Totals
   payload += boldOn + sizeDouble + `TOTAL: ${total.toFixed(2)} MAD\n\n` + sizeNormal + boldOff;
@@ -89,7 +92,7 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
   payload += `Rendu: ${change.toFixed(2)} MAD\n`;
   payload += sizeNormal;
   
-  payload += "------------------------------------------------\n\n";
+  payload += divider;
   payload += alignCenter + boldOn + sizeTall + "Merci pour votre visite!\n\n" + sizeNormal + boldOff;
   
   if (qrLink) {

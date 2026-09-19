@@ -30,6 +30,7 @@ const Settings = () => {
   const [ticketAddress, setTicketAddress] = useState(localStorage.getItem('ticket_address') || 'Tanger, Maroc');
   const [ticketPhone, setTicketPhone] = useState(localStorage.getItem('ticket_phone') || '06 00 00 00 00');
   const [ticketQrLink, setTicketQrLink] = useState(localStorage.getItem('ticket_qr_link') || '');
+  const [printerPaperSize, setPrinterPaperSize] = useState(localStorage.getItem('printer_paper_size') || '80mm');
   const [isPrinterSaved, setIsPrinterSaved] = useState(false);
 
   useEffect(() => {
@@ -67,6 +68,7 @@ const Settings = () => {
     localStorage.setItem('ticket_address', ticketAddress);
     localStorage.setItem('ticket_phone', ticketPhone);
     localStorage.setItem('ticket_qr_link', ticketQrLink);
+    localStorage.setItem('printer_paper_size', printerPaperSize);
     setIsPrinterSaved(true);
     setTimeout(() => setIsPrinterSaved(false), 3000);
   };
@@ -447,6 +449,34 @@ const Settings = () => {
                   placeholder="Ex: 192.168.1.100" 
                 />
                 <p className="text-xs text-gray-400 mt-1">Laissez vide pour désactiver l'impression automatique TCP.</p>
+              </div>
+              
+              <div className="input-group mt-4">
+                <label>Taille du papier (Largeur du ticket)</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="paperSize" 
+                      value="80mm" 
+                      checked={printerPaperSize === '80mm'} 
+                      onChange={() => setPrinterPaperSize('80mm')}
+                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium">80mm (Standard)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="paperSize" 
+                      value="58mm" 
+                      checked={printerPaperSize === '58mm'} 
+                      onChange={() => setPrinterPaperSize('58mm')}
+                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium">58mm (Petit)</span>
+                  </label>
+                </div>
               </div>
             </div>
             
