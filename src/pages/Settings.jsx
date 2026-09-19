@@ -4,6 +4,7 @@ import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, Al
 import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig } from '../services/api';
 
 const Settings = () => {
+  const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp', 'admin', 'printer', 'pos'
   const [status, setStatus] = useState('starting'); // 'starting', 'qr', 'connected', 'error'
   const [qrCode, setQrCode] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
@@ -119,7 +120,37 @@ const Settings = () => {
     <div className="pb-10">
       <h1 className="page-header">Paramètres du Salon</h1>
       
-      <div className="max-w-3xl">
+      <div className="max-w-4xl">
+        {/* Tabs Navigation */}
+        <div className="flex overflow-x-auto gap-2 mb-6 pb-2 custom-scrollbar">
+          <button 
+            onClick={() => setActiveTab('whatsapp')}
+            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'whatsapp' ? 'bg-green-100 text-green-700 shadow-sm border border-green-200' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'}`}
+          >
+            <Smartphone size={18} /> WhatsApp
+          </button>
+          <button 
+            onClick={() => setActiveTab('admin')}
+            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'admin' ? 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'}`}
+          >
+            <ShieldAlert size={18} /> Sécurité & Admin
+          </button>
+          <button 
+            onClick={() => setActiveTab('printer')}
+            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'printer' ? 'bg-indigo-100 text-indigo-700 shadow-sm border border-indigo-200' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'}`}
+          >
+            <Printer size={18} /> Imprimante & Ticket
+          </button>
+          <button 
+            onClick={() => setActiveTab('pos')}
+            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'pos' ? 'bg-purple-100 text-purple-700 shadow-sm border border-purple-200' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'}`}
+          >
+            <span className="text-lg">⚙️</span> Caisse
+          </button>
+        </div>
+
+        {/* TAB: WhatsApp */}
+        {activeTab === 'whatsapp' && (
         <div className="glass rounded-2xl p-6 border border-gray-100">
           <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
             <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center">
@@ -245,7 +276,11 @@ const Settings = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        )}
+
+        {/* TAB: Admin & Securite */}
+        {activeTab === 'admin' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="glass rounded-2xl p-6 border border-gray-100">
             <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
@@ -423,9 +458,11 @@ const Settings = () => {
             </div>
           </form>
         </div>
+        )}
 
-        {/* SECTION: Imprimante */}
-        <div className="glass rounded-2xl p-6 border border-gray-100 mt-6">
+        {/* TAB: Imprimante */}
+        {activeTab === 'printer' && (
+        <div className="glass rounded-2xl p-6 border border-gray-100">
           <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
             <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
               <Printer size={24} />
@@ -512,9 +549,11 @@ const Settings = () => {
             </button>
           </div>
         </div>
+        )}
 
-        {/* SECTION: Personnalisation Caisse */}
-        <div className="glass rounded-2xl p-6 border border-gray-100 mt-6">
+        {/* TAB: Personnalisation Caisse */}
+        {activeTab === 'pos' && (
+        <div className="glass rounded-2xl p-6 border border-gray-100">
           <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
             <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center">
               <span className="text-2xl">⚙️</span>
@@ -545,6 +584,7 @@ const Settings = () => {
             </label>
           </div>
         </div>
+        )}
 
       </div>
     </div>
