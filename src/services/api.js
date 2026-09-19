@@ -175,6 +175,43 @@ export const restoreCatalog = async () => {
   await Promise.all(promises);
 };
 
+export const migrateLocalDataToFirebase = async () => {
+  if (!isFirebaseConfigured) return;
+  
+  try {
+    // 1. History
+    const localHistory = JSON.parse(localStorage.getItem('majolica_history')) || [];
+    if (localHistory.length > 0) {
+      const snap = await getDocs(collection(db, 'history'));
+      const existingIds = snap.docs.map(d => d.id);
+      for (const item of localHistory) {
+        const id = item.id ? item.id.toString() : Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        if (!existingIds.includes(id)) {
+          item.id = id;
+          await setDoc(doc(db, 'history', id), item);
+        }
+      }
+    }
+
+    // 2. Reservations
+    const localRes = JSON.parse(localStorage.getItem('majolica_reservations')) || [];
+    if (localRes.length > 0) {
+      const snap = await getDocs(collection(db, 'reservations'));
+      const existingIds = snap.docs.map(d => d.id);
+      for (const item of localRes) {
+        const id = item.id ? item.id.toString() : Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        if (!existingIds.includes(id)) {
+          item.id = id;
+          await setDoc(doc(db, 'reservations', id), item);
+        }
+      }
+    }
+  } catch(e) {
+    console.error("Migration error:", e);
+    throw e;
+  }
+};
+
 export const saveProduct = async (product) => {
   product.id = product.id || Date.now().toString();
   _cache.products = null; // Invalidate cache

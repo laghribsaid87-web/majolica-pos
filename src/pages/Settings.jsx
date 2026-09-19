@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2 } from 'lucide-react';
-import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig, fetchProducts, restoreCatalog } from '../services/api';
+import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig, fetchProducts, migrateLocalDataToFirebase } from '../services/api';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp', 'admin', 'printer', 'pos', 'loyalty'
@@ -617,6 +617,28 @@ const Settings = () => {
               />
               <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
             </label>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl mt-6 border border-orange-100">
+            <div>
+              <h3 className="font-bold text-orange-700">Restaurer l'Historique & Clients</h3>
+              <p className="text-xs text-orange-600">Récupérer les anciens clients et l'historique des ventes qui étaient sauvegardés sur cet ordinateur.</p>
+            </div>
+            <button 
+              onClick={async () => {
+                if (window.confirm("Voulez-vous vraiment synchroniser l'ancien historique avec internet ?")) {
+                  try {
+                    await migrateLocalDataToFirebase();
+                    alert("Historique et clients restaurés avec succès ! Actualisez la page.");
+                  } catch (e) {
+                    alert("Erreur: " + e.message);
+                  }
+                }
+              }}
+              className="btn bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              Restaurer
+            </button>
           </div>
         </div>
         )}
