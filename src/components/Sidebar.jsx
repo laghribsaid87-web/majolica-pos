@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, Calendar, Settings, BarChart3, Menu, X, Star, ShoppingBag, LogOut, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, AlertCircle, MessageSquare } from 'lucide-react';
+import { LayoutGrid, Users, Calendar, Settings, BarChart3, Menu, X, Star, ShoppingBag, LogOut, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, AlertCircle, MessageSquare, Package } from 'lucide-react';
 import { logoutUser, fetchSalonConfig } from '../services/api';
 
 const Sidebar = ({ isAdmin: isBaseAdmin, adminOverride, setAdminOverride }) => {
@@ -115,6 +115,10 @@ const Sidebar = ({ isAdmin: isBaseAdmin, adminOverride, setAdminOverride }) => {
               <NavLink to="/catalog" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Prestations">
                 <ShoppingBag size={20} className="shrink-0" />
                 {!isCollapsed && <span className="whitespace-nowrap">Prestations</span>}
+              </NavLink>
+              <NavLink to="/inventory" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Inventaire & Stock">
+                <Package size={20} className="shrink-0" />
+                {!isCollapsed && <span className="whitespace-nowrap">Inventaire & Stock</span>}
               </NavLink>
               <NavLink to="/whatsapp-hub" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Hub WhatsApp">
                 <MessageSquare size={20} className="shrink-0" />

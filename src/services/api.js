@@ -157,6 +157,24 @@ export const subscribeToProducts = (callback) => {
   return () => {};
 };
 
+export const restoreCatalog = async () => {
+  if (!isFirebaseConfigured) return;
+  
+  // Get current items to avoid duplicating
+  const snap = await getDocs(collection(db, 'products'));
+  const existingNames = snap.docs.map(d => d.data().name.toLowerCase());
+  
+  const promises = PRODUCTS.map(p => {
+    // Only add if not already in DB by name
+    if (!existingNames.includes(p.name.toLowerCase())) {
+      return setDoc(doc(db, 'products', p.id.toString()), { ...p, type: 'Service' });
+    }
+    return Promise.resolve();
+  });
+  
+  await Promise.all(promises);
+};
+
 export const saveProduct = async (product) => {
   product.id = product.id || Date.now().toString();
   _cache.products = null; // Invalidate cache

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { fetchExpenses, saveExpense, updateExpense, deleteExpense, fetchSalonConfig } from '../services/api';
+import { fetchExpenses, saveExpense, updateExpense, deleteExpense, fetchSalonConfig, subscribeToProducts, saveProduct } from '../services/api';
 import { Plus, Trash2, Wallet, CreditCard, Filter, ArrowUpRight, ArrowDownRight, Coffee, Zap, Edit2 } from 'lucide-react';
 
 const Expenses = () => {
   const [expenses, setExpenses] = useState([]);
+  const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [isQuickPayModalOpen, setIsQuickPayModalOpen] = useState(false);
@@ -18,9 +19,14 @@ const Expenses = () => {
   const [description, setDescription] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('caisse'); // 'caisse' or 'personnel'
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [invoiceLines, setInvoiceLines] = useState([]);
 
   useEffect(() => {
     loadData();
+    const unsub = subscribeToProducts((data) => {
+      setProducts(data || []);
+    });
+    return () => unsub();
   }, []);
 
   const loadData = async () => {
@@ -35,7 +41,9 @@ const Expenses = () => {
     
     const finalAmount = customAmount || amount;
     const finalCategory = customCat || category;
-    const finalDesc = customDesc || description;
+    const finalDesc = (finalCategory === 'Achat Marchandise (Stock)') 
+      ? 'Facture Achat Marchandise (Stock)' 
+      : (customDesc || description);
 
     if (!finalAmount || !finalDesc) return;
 
@@ -45,7 +53,8 @@ const Expenses = () => {
       description: finalDesc,
       paymentMethod,
       date,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      ...(finalCategory === 'Achat Marchandise (Stock)' ? { stockItems: invoiceLines } : {})
     };
 
     if (editingExpenseId) {
@@ -53,6 +62,18 @@ const Expenses = () => {
       await updateExpense(expenseData);
     } else {
       await saveExpense(expenseData);
+      
+      // Stock Updates for "Achat Marchandise (Stock)"
+      if (finalCategory === 'Achat Marchandise (Stock)') {
+        for (const line of invoiceLines) {
+          if (line.productId && parseInt(line.qty, 10) > 0) {
+            const prod = products.find(p => p.id === line.productId);
+            if (prod) {
+              await saveProduct({ ...prod, stock: (prod.stock || 0) + parseInt(line.qty, 10) });
+            }
+          }
+        }
+      }
     }
 
     setIsModalOpen(false);
@@ -70,24 +91,26 @@ const Expenses = () => {
 
   const resetForm = () => {
     setAmount('');
-    setCategory('Matériel');
     setDescription('');
+    setCategory('Matériel & Fournitures');
     setPaymentMethod('caisse');
     setDate(format(new Date(), 'yyyy-MM-dd'));
     setEditingExpenseId(null);
+    setInvoiceLines([]);
   };
 
   const handleEdit = (expense) => {
+    setEditingExpenseId(expense.id);
     setAmount(expense.amount.toString());
     setCategory(expense.category);
     setDescription(expense.description);
     setPaymentMethod(expense.paymentMethod);
     setDate(expense.date);
-    setEditingExpenseId(expense.id);
+    setInvoiceLines([]); // No stock updates on edit to keep things simple
     setIsModalOpen(true);
   };
 
-  const categories = ['Loyer', 'Électricité & Eau', 'Matériel', 'Fournitures', 'Divers'];
+  const categories = ['Loyer', 'Électricité & Eau', 'Matériel & Fournitures', 'Produits d\'entretien', 'Achat Marchandise (Stock)', 'Avance Salaire', 'Divers'];
 
   // Filter expenses by selected month
   const filteredExpenses = expenses.filter(e => 
@@ -241,17 +264,19 @@ const Expenses = () => {
             </div>
             
             <form onSubmit={handleSaveExpense} className="p-6 space-y-4">
-              <div className="input-group">
-                <label>Qu'avez-vous acheté ?</label>
-                <input 
-                  type="text" 
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Ex: Produits d'entretien, Café, Loyer..."
-                  className="input-field"
-                  required
-                />
-              </div>
+              {category !== 'Achat Marchandise (Stock)' && (
+                <div className="input-group">
+                  <label>Qu'avez-vous acheté ?</label>
+                  <input 
+                    type="text" 
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="Ex: Produits d'entretien, Café..."
+                    className="input-field"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="input-group">
@@ -283,12 +308,101 @@ const Expenses = () => {
                 <label>Catégorie</label>
                 <select 
                   value={category}
-                  onChange={e => setCategory(e.target.value)}
+                  onChange={e => {
+                    setCategory(e.target.value);
+                    if (e.target.value !== 'Achat Marchandise (Stock)') {
+                      setInvoiceLines([]);
+                    } else if (invoiceLines.length === 0) {
+                      setInvoiceLines([{ productId: '', qty: 1 }]);
+                    }
+                  }}
                   className="input-field"
                 >
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+
+              {category === 'Achat Marchandise (Stock)' && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-bold text-gray-700">Produits achetés (Stock)</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setInvoiceLines([...invoiceLines, { productId: '', qty: 1 }])}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Ajouter une ligne
+                    </button>
+                  </div>
+                  
+                  {invoiceLines.map((line, index) => (
+                    <div key={index} className="flex items-center gap-2 mb-2">
+                      <select 
+                        value={line.productId}
+                        onChange={(e) => {
+                          const newLines = [...invoiceLines];
+                          newLines[index].productId = e.target.value;
+                          setInvoiceLines(newLines);
+                        }}
+                        className="input-field py-2 text-sm flex-1"
+                        required
+                      >
+                        <option value="">Sélectionner un produit...</option>
+                        {products.filter(p => p.type === 'Produit').map(p => (
+                          <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock || 0})</option>
+                        ))}
+                      </select>
+                      
+                      <input 
+                        type="number" 
+                        min="1" 
+                        value={line.qty}
+                        onChange={(e) => {
+                          const newLines = [...invoiceLines];
+                          newLines[index].qty = e.target.value;
+                          setInvoiceLines(newLines);
+                        }}
+                        className="input-field py-2 text-sm w-20 text-center"
+                        placeholder="Qté"
+                        required
+                      />
+
+                      <input 
+                        type="number" 
+                        min="0"
+                        step="0.01"
+                        value={line.lineTotal || ''}
+                        onChange={(e) => {
+                          const newLines = [...invoiceLines];
+                          newLines[index].lineTotal = e.target.value;
+                          setInvoiceLines(newLines);
+                          
+                          // Auto-calculate global amount
+                          const total = newLines.reduce((sum, l) => sum + (parseFloat(l.lineTotal) || 0), 0);
+                          if (total > 0) setAmount(total.toFixed(2));
+                        }}
+                        className="input-field py-2 text-sm w-24 text-right"
+                        placeholder="Prix Total"
+                      />
+                      
+                      {invoiceLines.length > 1 && (
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const newLines = invoiceLines.filter((_, i) => i !== index);
+                            setInvoiceLines(newLines);
+                            const total = newLines.reduce((sum, l) => sum + (parseFloat(l.lineTotal) || 0), 0);
+                            setAmount(total > 0 ? total.toFixed(2) : '');
+                          }}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="input-group mt-2">
                 <label>D'où avez-vous payé cet achat ?</label>

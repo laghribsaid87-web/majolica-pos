@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Plus, Minus, Trash2, User, Wallet, Bell, X, Calendar, Lock } from 'lucide-react';
-import { saveOrder, subscribeToEmployees, subscribeToProducts, saveExpense, saveEmployee, fetchClubMembers, subscribeToNewOnlineReservations, fetchSalonConfig } from '../services/api';
+import { saveOrder, subscribeToEmployees, subscribeToProducts, saveExpense, saveEmployee, fetchClubMembers, saveClubMember, subscribeToNewOnlineReservations, fetchSalonConfig, saveProduct } from '../services/api';
 import { printTicketTCP } from '../utils/printer';
 
 
@@ -23,6 +23,9 @@ const POS = () => {
   
   // Print Receipt State
   const [printData, setPrintData] = useState(null);
+
+  // Loyalty Config
+  const [loyaltyConfig, setLoyaltyConfig] = useState({ enabled: false, pointsPerDh: 1, rewards: [] });
 
   // Security
   const [adminPin, setAdminPin] = useState('1234');
@@ -73,8 +76,13 @@ const POS = () => {
     });
     fetchClubMembers().then(setClubMembers);
     fetchSalonConfig().then(config => {
-      if (config && config.adminPin) {
-        setAdminPin(config.adminPin);
+      if (config) {
+        if (config.adminPin) setAdminPin(config.adminPin);
+        setLoyaltyConfig({
+          enabled: config.loyaltyEnabled || false,
+          pointsPerDh: parseFloat(config.loyaltyPointsPerDh) || 1,
+          rewards: config.loyaltyRewards || []
+        });
       }
     });
 
@@ -156,8 +164,17 @@ const POS = () => {
 
   const addToCart = (product) => {
     const existing = cart.find(item => item.id === product.id);
+    const newQty = existing ? existing.qty + 1 : 1;
+    
+    if (product.type === 'Produit' && product.stock !== undefined && product.stock !== null) {
+      if (newQty > product.stock) {
+        alert(`Stock insuffisant. Seulement ${product.stock} disponible(s).`);
+        return;
+      }
+    }
+    
     if (existing) {
-      setCart(cart.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item));
+      setCart(cart.map(item => item.id === product.id ? { ...item, qty: newQty } : item));
     } else {
       setCart([...cart, { ...product, qty: 1 }]);
     }
@@ -175,9 +192,19 @@ const POS = () => {
         }).filter(Boolean));
       });
     } else {
+      const product = products.find(p => p.id === id);
+      const existing = cart.find(item => item.id === id);
+      const newQty = (existing ? existing.qty : 0) + delta;
+      
+      if (product && product.type === 'Produit' && product.stock !== undefined && product.stock !== null) {
+        if (newQty > product.stock) {
+          alert(`Stock insuffisant. Seulement ${product.stock} disponible(s).`);
+          return;
+        }
+      }
+      
       setCart(cart.map(item => {
         if (item.id === id) {
-          const newQty = item.qty + delta;
           return newQty > 0 ? { ...item, qty: newQty } : null;
         }
         return item;
@@ -202,10 +229,12 @@ const POS = () => {
   };
 
   const getItemPrice = (item) => {
+    if (item.isReward) return 0;
     return (isClientClub && item.clubPrice !== undefined) ? item.clubPrice : item.price;
   };
 
   const total = cart.reduce((sum, item) => sum + getItemPrice(item) * item.qty, 0);
+  const finalTotal = total;
 
   const handleCheckout = async () => {
     const orderItems = cart.map(item => ({
@@ -216,7 +245,7 @@ const POS = () => {
 
     const orderData = { 
       items: orderItems, 
-      total: total, 
+      total: finalTotal, 
       employeeName: selectedEmployee, 
       clientName: clientName.trim(),
       clientPhone: clientPhone.trim(),
@@ -225,21 +254,56 @@ const POS = () => {
     };
     await saveOrder(orderData);
     
+    // Manage Loyalty Points
+    if (loyaltyConfig.enabled && isClientClub && clientPhone) {
+      const member = clubMembers.find(m => m.phone === clientPhone);
+      if (member) {
+        const pointsEarned = Math.floor(finalTotal * loyaltyConfig.pointsPerDh);
+        const pointsSpent = cart.reduce((sum, item) => sum + (item.isReward ? (item.pointsCost || 0) * item.qty : 0), 0);
+        member.points = (member.points || 0) + pointsEarned - pointsSpent;
+        await saveClubMember(member);
+      }
+    }
+
+    // Decrement stock for products
+    const promises = cart.map(item => {
+      if (item.type === 'Produit' && item.stock !== undefined && item.stock !== null) {
+        const productFromDb = products.find(p => p.id === item.id);
+        if (productFromDb) {
+          const updatedProduct = { ...productFromDb, stock: Math.max(0, productFromDb.stock - item.qty) };
+          return saveProduct(updatedProduct);
+        }
+      }
+      return Promise.resolve();
+    });
+    await Promise.all(promises);
+
     // Set data for the receipt
     setPrintData({
       ...orderData,
       amountReceived: parseFloat(amountReceived),
-      changeToReturn: parseFloat(amountReceived) - total
+      changeToReturn: parseFloat(amountReceived) - finalTotal
     });
 
     // Send WhatsApp Thank You Message
     if (clientPhone.trim()) {
+      let pointsMessage = "";
+      if (loyaltyConfig.enabled && isClientClub) {
+        const member = clubMembers.find(m => m.phone === clientPhone);
+        if (member) {
+          // The member object was just updated in the DB and memory, 
+          // but we can compute the new balance if we want to be safe, 
+          // or just use member.points which was just updated above at line 261.
+          pointsMessage = `\n🎁 Solde Fidélité : ${member.points || 0} Points\n`;
+        }
+      }
+
       fetch('https://majolica.136.116.62.73.nip.io/api/send-whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: clientPhone.trim(),
-          message: `Merci ${clientName.trim() || 'chère cliente'} pour votre visite chez Majolica ! ❤️\n\nNous espérons que votre prestation vous a plu.\nÀ la prochaine ! 💅✨`
+          message: `Merci ${clientName.trim() || 'chère cliente'} pour votre visite chez Majolica ! ❤️\n\nNous espérons que votre prestation vous a plu.\n${pointsMessage}\nÀ la prochaine ! 💅✨`
         })
       }).catch(err => console.log("WhatsApp API not reachable"));
     }
@@ -271,10 +335,11 @@ const POS = () => {
           employee: selectedEmployee,
           clientName: clientName,
           cart: processedCart,
-          total: total,
+          total: finalTotal,
           amountReceived: amountReceived,
-          change: parseFloat(amountReceived) - total,
-          date: new Date()
+          change: parseFloat(amountReceived) - finalTotal,
+          date: new Date(),
+          loyaltyPointsBalance: (loyaltyConfig.enabled && isClientClub) ? clubMembers.find(m => m.phone === clientPhone)?.points : undefined
         };
         
         try {
@@ -298,7 +363,31 @@ const POS = () => {
     setIsPaymentModalOpen(true);
   };
 
-  const changeToReturn = parseFloat(amountReceived) - total;
+  const changeToReturn = parseFloat(amountReceived) - finalTotal;
+
+  // Retrieve current member points
+  const currentMember = (loyaltyConfig.enabled && isClientClub && clientPhone) ? clubMembers.find(m => m.phone === clientPhone) : null;
+  const currentPoints = currentMember ? (currentMember.points || 0) : 0;
+  
+  const spentPointsInCart = cart.reduce((sum, item) => sum + (item.isReward ? (item.pointsCost || 0) * item.qty : 0), 0);
+  const remainingPoints = currentPoints - spentPointsInCart;
+  
+  // Available rewards based on loyaltyConfig.rewards
+  const availableRewards = (loyaltyConfig.rewards || []).map(r => {
+    const prod = products.find(p => p.id === r.productId);
+    return prod ? { ...prod, pointsCost: r.pointsCost } : null;
+  }).filter(r => r && r.pointsCost <= remainingPoints);
+
+  const handleAddReward = (reward) => {
+    if (remainingPoints < reward.pointsCost) return;
+    
+    const existing = cart.find(item => item.id === reward.id && item.isReward);
+    if (existing) {
+      setCart(cart.map(item => (item.id === reward.id && item.isReward) ? { ...item, qty: item.qty + 1 } : item));
+    } else {
+      setCart([...cart, { ...reward, price: 0, isReward: true, pointsCost: reward.pointsCost, qty: 1 }]);
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row gap-4 lg:gap-6 h-full min-h-[80vh]">
@@ -485,11 +574,20 @@ const POS = () => {
                 onClick={() => setSelectedCartItem(item)}
               >
                 <div className="flex-1 pr-2">
-                  <div className="font-bold text-sm sm:text-sm text-secondary mb-1 leading-tight">{item.name}</div>
+                  <div className="font-bold text-sm sm:text-sm text-secondary mb-1 leading-tight">
+                    {item.isReward && <span className="text-purple-600 mr-1">🎁</span>}
+                    {item.name}
+                  </div>
                   <div className="text-accent text-sm font-black flex items-center gap-2">
-                    {getItemPrice(item).toFixed(2)} DH
-                    {isClientClub && item.clubPrice !== undefined && item.clubPrice !== item.price && (
-                       <span className="text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded border border-rose-200 line-through opacity-70">{item.price} DH</span>
+                    {item.isReward ? (
+                      <span className="text-purple-600">0.00 DH ({item.pointsCost} pts)</span>
+                    ) : (
+                      <>
+                        {getItemPrice(item).toFixed(2)} DH
+                        {isClientClub && item.clubPrice !== undefined && item.clubPrice !== item.price && (
+                           <span className="text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded border border-rose-200 line-through opacity-70">{item.price} DH</span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -510,7 +608,7 @@ const POS = () => {
               <label className="flex items-center justify-between text-sm w-full">
                 <span className="flex items-center gap-2"><User size={16} className="text-accent" /> Employée</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-rose-600 uppercase">Tarif Club</span>
+                  <span className="text-xs font-bold text-purple-600 uppercase">Compte Fidélité</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={isClientClub} onChange={(e) => setIsClientClub(e.target.checked)} />
                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-500"></div>
@@ -526,7 +624,7 @@ const POS = () => {
 
           <div className="flex justify-between items-end mb-6">
             <span className="text-gray-500 font-bold uppercase tracking-widest text-sm">Total à payer</span>
-            <span className="text-4xl font-black text-secondary leading-none">{total.toFixed(2)} <span className="text-xl">DH</span></span>
+            <span className="text-4xl font-black text-secondary leading-none">{finalTotal.toFixed(2)} <span className="text-xl">DH</span></span>
           </div>
           
           <button 
@@ -558,7 +656,12 @@ const POS = () => {
             
             <div className="mb-4 bg-white/50 p-4 rounded-xl text-center border border-gray-200">
               <div className="text-gray-500 font-medium mb-1">Total à Payer</div>
-              <div className="text-3xl font-bold text-accent">{total.toFixed(2)} MAD</div>
+              <div className="text-3xl font-bold text-accent">{finalTotal.toFixed(2)} MAD</div>
+              {spentPointsInCart > 0 && (
+                <div className="text-sm font-bold text-purple-600 mt-1">
+                  (🎁 Cadeaux ajoutés pour {spentPointsInCart} points)
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -584,6 +687,40 @@ const POS = () => {
               </div>
             </div>
 
+            {currentMember && currentPoints > 0 && (
+              <div className="mb-4 bg-purple-50 p-4 rounded-xl border border-purple-200">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-purple-700 font-bold text-sm">Fidélité (Points restants: {remainingPoints})</span>
+                  <span className="text-purple-800 font-black text-lg">{currentPoints} pts</span>
+                </div>
+                
+                {availableRewards.length > 0 ? (
+                  <div>
+                    <div className="text-xs text-purple-600 font-bold mb-2 uppercase">🎁 Cadeaux Débloqués :</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                      {availableRewards.map(reward => (
+                        <button 
+                          key={reward.id}
+                          onClick={() => handleAddReward(reward)}
+                          className="flex justify-between items-center bg-white p-2 rounded-lg border border-purple-100 hover:border-purple-300 hover:shadow-md transition-all text-left group"
+                        >
+                          <div className="truncate flex-1">
+                            <div className="font-bold text-sm text-purple-900 truncate">{reward.name}</div>
+                            <div className="text-xs text-purple-600">{reward.price * 10} pts</div>
+                          </div>
+                          <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors shrink-0 ml-2">
+                            <Plus size={14} />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-purple-600/70 italic text-center">Pas assez de points pour débloquer un cadeau.</div>
+                )}
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="text-lg block text-center mb-2 font-bold text-gray-700">Espèces reçues (MAD)</label>
               <input 
@@ -600,14 +737,14 @@ const POS = () => {
             <div className="flex flex-wrap gap-2 mb-6 justify-center">
               <button 
                 className="px-4 py-2 bg-accent/10 hover:bg-accent/20 border border-accent/20 rounded-xl font-bold text-accent transition-colors shadow-sm" 
-                onClick={() => setAmountReceived(total.toString())}
+                onClick={() => setAmountReceived(finalTotal.toString())}
               >
-                Le Compte Juste ({total.toFixed(2)} DH)
+                Le Compte Juste ({finalTotal.toFixed(2)} DH)
               </button>
               {(() => {
-                const nearest50 = Math.ceil((total + 1) / 50) * 50;
-                const nearest100 = Math.ceil((total + 1) / 100) * 100;
-                const nearest200 = Math.ceil((total + 1) / 200) * 200;
+                const nearest50 = Math.ceil((finalTotal + 1) / 50) * 50;
+                const nearest100 = Math.ceil((finalTotal + 1) / 100) * 100;
+                const nearest200 = Math.ceil((finalTotal + 1) / 200) * 200;
                 
                 const suggestions = Array.from(new Set([
                   nearest50, 
@@ -616,7 +753,7 @@ const POS = () => {
                   nearest100 + 100,
                   nearest200 + 200
                 ]))
-                .filter(val => val > total)
+                .filter(val => val > finalTotal)
                 .sort((a, b) => a - b)
                 .slice(0, 3);
                 

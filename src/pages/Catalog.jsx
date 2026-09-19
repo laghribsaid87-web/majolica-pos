@@ -13,6 +13,9 @@ const Catalog = () => {
   const [newCategory, setNewCategory] = useState('Manucure');
   const [newDuration, setNewDuration] = useState('60');
   const [newIcon, setNewIcon] = useState('💅');
+  const [newType, setNewType] = useState('Service');
+  const [newStock, setNewStock] = useState('');
+  const [newMinStock, setNewMinStock] = useState('3');
   const [editingProductId, setEditingProductId] = useState(null);
 
   useEffect(() => {
@@ -38,7 +41,10 @@ const Catalog = () => {
         clubPrice: parseFloat(newClubPrice) || parseFloat(newPrice),
         category: newCategory,
         duration: parseInt(newDuration, 10),
-        icon: newIcon
+        icon: newIcon,
+        type: newType,
+        stock: newType === 'Produit' ? parseInt(newStock || 0, 10) : null,
+        minStock: newType === 'Produit' ? parseInt(newMinStock || 3, 10) : null
       };
       
       if (editingProductId) {
@@ -47,7 +53,7 @@ const Catalog = () => {
       
       await saveProduct(product);
       cancelEdit();
-      await loadProducts();
+      // The product list will auto-update via subscribeToProducts listener
     } catch (err) {
       setError(`Erreur lors de la sauvegarde: ${err.message}`);
     } finally {
@@ -63,6 +69,9 @@ const Catalog = () => {
     setNewCategory(prod.category || 'Manucure');
     setNewDuration((prod.duration || 60).toString());
     setNewIcon(prod.icon || '💅');
+    setNewType(prod.type || 'Service');
+    setNewStock(prod.stock !== undefined && prod.stock !== null ? prod.stock.toString() : '');
+    setNewMinStock(prod.minStock !== undefined && prod.minStock !== null ? prod.minStock.toString() : '3');
   };
 
   const cancelEdit = () => {
@@ -73,13 +82,16 @@ const Catalog = () => {
     setNewCategory('Manucure');
     setNewDuration('60');
     setNewIcon('💅');
+    setNewType('Service');
+    setNewStock('');
+    setNewMinStock('3');
   };
 
   const handleDeleteProduct = async (id) => {
     if (window.confirm('Voulez-vous vraiment supprimer cette prestation ?')) {
       try {
         await deleteProduct(id);
-        await loadProducts();
+        // The product list will auto-update via subscribeToProducts listener
       } catch (err) {
         setError(`Erreur lors de la suppression: ${err.message}`);
       }
@@ -95,7 +107,7 @@ const Catalog = () => {
       <div className="flex-1">
         <div className="flex items-center justify-between mb-4">
           <h1 className="page-header mb-0">Catalogue des Prestations</h1>
-          <button onClick={loadProducts} className="text-gray-500 hover:text-primary p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Actualiser">
+          <button onClick={() => window.location.reload()} className="text-gray-500 hover:text-primary p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Actualiser">
             <RefreshCw size={18} />
           </button>
         </div>
@@ -135,7 +147,13 @@ const Catalog = () => {
                   <div className="font-bold text-secondary text-sm mb-1 truncate">{prod.name}</div>
                   <div className="text-gray-500 text-xs mb-2 flex flex-wrap justify-center sm:justify-start items-center gap-2">
                     <span className="flex items-center gap-1"><Tags size={12} /> {prod.category}</span>
-                    <span className="flex items-center gap-1"><Clock size={12} /> {prod.duration}m</span>
+                    {prod.type === 'Service' || !prod.type ? (
+                      <span className="flex items-center gap-1"><Clock size={12} /> {prod.duration}m</span>
+                    ) : (
+                      <span className={`flex items-center gap-1 font-bold ${prod.stock <= (prod.minStock || 3) ? 'text-red-500' : 'text-blue-500'}`}>
+                        📦 Stock: {prod.stock}
+                      </span>
+                    )}
                   </div>
                   <div className="flex justify-between items-center text-sm mt-auto">
                     <div className="flex flex-col">
@@ -176,8 +194,26 @@ const Catalog = () => {
         </div>
 
         <div className="input-group">
-          <label>NOM DU SERVICE</label>
-          <input type="text" placeholder="Ex: Soin de visage" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          <label>NOM DU SERVICE / PRODUIT</label>
+          <input type="text" placeholder="Ex: Soin de visage / Shampoing" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        </div>
+
+        <div className="input-group">
+          <label>TYPE</label>
+          <div className="flex gap-2 mt-1 mb-2">
+            <button
+              onClick={() => setNewType('Service')}
+              className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${newType === 'Service' ? 'bg-accent text-white' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Service
+            </button>
+            <button
+              onClick={() => setNewType('Produit')}
+              className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${newType === 'Produit' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Produit
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -201,14 +237,28 @@ const Catalog = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="input-group">
-            <label>DURÉE (MIN)</label>
-            <input type="number" placeholder="60" value={newDuration} onChange={(e) => setNewDuration(e.target.value)} min="5" step="5" />
-          </div>
-          <div className="input-group">
-            <label>ICÔNE (EMOJI)</label>
-            <input type="text" placeholder="💅" value={newIcon} onChange={(e) => setNewIcon(e.target.value)} maxLength="2" className="text-center text-xl" />
-          </div>
+          {newType === 'Service' ? (
+            <div className="input-group col-span-2">
+              <label>DURÉE (MIN)</label>
+              <input type="number" placeholder="60" value={newDuration} onChange={(e) => setNewDuration(e.target.value)} min="5" step="5" />
+            </div>
+          ) : (
+            <>
+              <div className="input-group">
+                <label>STOCK INITIAL</label>
+                <input type="number" placeholder="Ex: 10" value={newStock} onChange={(e) => setNewStock(e.target.value)} min="0" />
+              </div>
+              <div className="input-group">
+                <label>STOCK MIN (ALERTE)</label>
+                <input type="number" placeholder="Ex: 3" value={newMinStock} onChange={(e) => setNewMinStock(e.target.value)} min="0" />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="input-group">
+          <label>ICÔNE (EMOJI)</label>
+          <input type="text" placeholder="💅" value={newIcon} onChange={(e) => setNewIcon(e.target.value)} maxLength="2" className="text-center text-xl" />
         </div>
 
         <button 

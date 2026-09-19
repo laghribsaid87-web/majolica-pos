@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer } from 'lucide-react';
-import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig } from '../services/api';
+import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2 } from 'lucide-react';
+import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig, fetchProducts, restoreCatalog } from '../services/api';
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp', 'admin', 'printer', 'pos'
+  const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp', 'admin', 'printer', 'pos', 'loyalty'
   const [status, setStatus] = useState('starting'); // 'starting', 'qr', 'connected', 'error'
   const [qrCode, setQrCode] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
@@ -26,6 +26,12 @@ const Settings = () => {
   const [isConfigSaved, setIsConfigSaved] = useState(false);
   const [posCustomMode, setPosCustomMode] = useState(localStorage.getItem('pos_custom_mode_enabled') === 'true');
 
+  // Loyalty State
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [loyaltyPointsPerDh, setLoyaltyPointsPerDh] = useState('1');
+  const [loyaltyRewards, setLoyaltyRewards] = useState([]);
+  const [products, setProducts] = useState([]);
+
   const [printerIp, setPrinterIp] = useState(localStorage.getItem('printer_ip') || '');
   const [ticketShopName, setTicketShopName] = useState(localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS');
   const [ticketAddress, setTicketAddress] = useState(localStorage.getItem('ticket_address') || 'Tanger, Maroc');
@@ -42,7 +48,11 @@ const Settings = () => {
       setAdminEmail(config?.adminEmail || '');
       setCashierPin(config?.cashierPin || '0000');
       setAdminPin(config?.adminPin || '1234');
+      setLoyaltyEnabled(config?.loyaltyEnabled || false);
+      setLoyaltyPointsPerDh((config?.loyaltyPointsPerDh || 1).toString());
+      setLoyaltyRewards(config?.loyaltyRewards || []);
     });
+    fetchProducts().then(setProducts);
   }, []);
   
   const handleSavePhone = async () => {
@@ -50,14 +60,16 @@ const Settings = () => {
     setIsPhoneSaved(true);
     setTimeout(() => setIsPhoneSaved(false), 3000);
   };
-
   const handleSaveFixedCharges = async () => {
     await saveSalonConfig({ 
       monthlyRent: parseFloat(monthlyRent) || 0,
       monthlyElec: parseFloat(monthlyElec) || 0,
       adminEmail: adminEmail.trim(),
       cashierPin: cashierPin.trim(),
-      adminPin: adminPin.trim()
+      adminPin: adminPin.trim(),
+      loyaltyEnabled,
+      loyaltyPointsPerDh: parseFloat(loyaltyPointsPerDh) || 1,
+      loyaltyRewards
     });
     setIsConfigSaved(true);
     setTimeout(() => setIsConfigSaved(false), 3000);
@@ -115,6 +127,21 @@ const Settings = () => {
 
     return () => clearInterval(interval);
   }, []);
+  const addLoyaltyReward = () => {
+    setLoyaltyRewards([...loyaltyRewards, { productId: products[0]?.id || '', pointsCost: 100 }]);
+  };
+
+  const updateLoyaltyReward = (index, field, value) => {
+    const newRewards = [...loyaltyRewards];
+    newRewards[index] = { ...newRewards[index], [field]: value };
+    setLoyaltyRewards(newRewards);
+  };
+
+  const removeLoyaltyReward = (index) => {
+    const newRewards = [...loyaltyRewards];
+    newRewards.splice(index, 1);
+    setLoyaltyRewards(newRewards);
+  };
 
   return (
     <div className="pb-10">
@@ -146,6 +173,12 @@ const Settings = () => {
             className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'pos' ? 'bg-purple-100 text-purple-700 shadow-sm border border-purple-200' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'}`}
           >
             <span className="text-lg">⚙️</span> Caisse
+          </button>
+          <button 
+            onClick={() => setActiveTab('loyalty')}
+            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'loyalty' ? 'bg-pink-100 text-pink-700 shadow-sm border border-pink-200' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'}`}
+          >
+            <Gift size={18} /> Fidélité & Récompenses
           </button>
         </div>
 
@@ -584,6 +617,143 @@ const Settings = () => {
               />
               <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
             </label>
+          </div>
+        </div>
+        )}
+
+        {/* TAB: Loyalty */}
+        {activeTab === 'loyalty' && (
+        <div className="glass rounded-2xl p-6 border border-gray-100 space-y-6">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center">
+                <Gift size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-secondary">Fidélité & Récompenses</h2>
+                <p className="text-sm text-gray-500">Gérez le programme de fidélité et vos cadeaux</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleSaveFixedCharges}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Save size={18} />
+              {isConfigSaved ? "Enregistré!" : "Enregistrer"}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <span className="text-pink-500">1.</span> Activation du programme
+              </h3>
+              
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">Activer la Fidélité</h4>
+                  <p className="text-xs text-gray-500">Active ou désactive le calcul des points à la caisse.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={loyaltyEnabled}
+                    onChange={(e) => setLoyaltyEnabled(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                </label>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <span className="text-pink-500">2.</span> Règle de gain (Collecte)
+              </h3>
+              
+              <div className="input-group">
+                <label>1 Dirham (DH) dépensé = ? Points</label>
+                <input 
+                  type="number" 
+                  value={loyaltyPointsPerDh}
+                  onChange={(e) => setLoyaltyPointsPerDh(e.target.value)}
+                  placeholder="Ex: 1"
+                  min="0.1"
+                  step="0.1"
+                  className="bg-gray-50"
+                  disabled={!loyaltyEnabled}
+                />
+                <p className="text-xs text-gray-500 mt-1">Ex: Si vous mettez 1, un ticket de 200 DH donne 200 points.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <span className="text-pink-500">3.</span> Vos Offres & Cadeaux
+              </h3>
+              <button 
+                onClick={addLoyaltyReward}
+                disabled={!loyaltyEnabled}
+                className="btn bg-pink-50 text-pink-600 hover:bg-pink-100 text-sm py-2"
+              >
+                <Plus size={16} /> Ajouter un cadeau
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-4">Sélectionnez UNIQUEMENT les prestations rentables que vous voulez offrir en cadeau de fidélité, et choisissez leur prix en points.</p>
+            
+            {!loyaltyEnabled ? (
+              <div className="p-4 bg-gray-50 text-gray-400 text-center rounded-xl text-sm italic">
+                Activez d'abord le programme pour configurer vos cadeaux.
+              </div>
+            ) : loyaltyRewards.length === 0 ? (
+              <div className="p-4 bg-gray-50 text-gray-500 text-center rounded-xl text-sm">
+                Aucun cadeau configuré. Cliquez sur "Ajouter un cadeau".
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {loyaltyRewards.map((reward, index) => (
+                  <div key={index} className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl relative group">
+                    <div className="flex-1 w-full">
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Prestation (Cadeau)</label>
+                      <select 
+                        value={reward.productId}
+                        onChange={(e) => updateLoyaltyReward(index, 'productId', e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-pink-500 outline-none"
+                      >
+                        <option value="">Sélectionnez...</option>
+                        {products.filter(p => p.type === 'Service' || !p.type).map(p => (
+                          <option key={p.id} value={p.id}>{p.icon || '💅'} {p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="w-full sm:w-1/3">
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Prix (en Points)</label>
+                      <div className="relative">
+                        <input 
+                          type="number"
+                          value={reward.pointsCost}
+                          onChange={(e) => updateLoyaltyReward(index, 'pointsCost', parseInt(e.target.value) || 0)}
+                          className="w-full bg-white border border-gray-200 rounded-lg pl-3 pr-10 py-2 text-sm focus:border-pink-500 outline-none"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">PTS</span>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => removeLoyaltyReward(index)}
+                      className="mt-5 sm:mt-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         )}

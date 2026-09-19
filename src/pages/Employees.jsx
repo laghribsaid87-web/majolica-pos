@@ -19,7 +19,6 @@ const Employees = () => {
   // Absence State
   const [selectedAbsenceDates, setSelectedAbsenceDates] = useState([]);
   
-  // Salary Edit State
   const [isEditingSalary, setIsEditingSalary] = useState(false);
   const [editSalaryValue, setEditSalaryValue] = useState('');
   
@@ -59,6 +58,7 @@ const Employees = () => {
     });
     setNewName('');
     setNewSalary('');
+    setNewRole('Coiffeuse/Onglerie');
     await loadEmployees();
   };
 
@@ -210,7 +210,8 @@ const Employees = () => {
     });
     
     const ca = monthOrders.reduce((sum, order) => sum + order.total, 0);
-    const cost = (emp.baseSalary || 0) - monthAbsences;
+    const totalSalary = (emp.baseSalary || 0);
+    const cost = totalSalary - monthAbsences;
     const profit = ca - cost;
     
     return { 
@@ -218,7 +219,8 @@ const Employees = () => {
       absences: monthAbsences, 
       advancesDetails: monthAdvancesDetails,
       absencesDetails: monthAbsencesDetails,
-      reste, 
+      reste: totalSalary - monthAdvances - monthAbsences, 
+      commission,
       ca, 
       profit 
     };
@@ -299,15 +301,16 @@ const Employees = () => {
                 </select>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="input-group">
                   <label>Salaire Base (DH)</label>
                   <input type="number" placeholder="Ex: 3000" value={newSalary} onChange={(e) => setNewSalary(e.target.value)} />
                 </div>
-                <div className="input-group">
-                  <label>Date d'entrée</label>
-                  <input type="date" value={newEntryDate} onChange={(e) => setNewEntryDate(e.target.value)} />
-                </div>
+              </div>
+
+              <div className="input-group">
+                <label>Date d'entrée</label>
+                <input type="date" value={newEntryDate} onChange={(e) => setNewEntryDate(e.target.value)} />
               </div>
 
               <button className="btn btn-primary w-full mt-4" onClick={handleAddEmployee} disabled={!newName.trim()}>

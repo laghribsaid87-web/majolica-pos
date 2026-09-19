@@ -4,6 +4,7 @@ import { fetchHistory, fetchExpenses, fetchEmployees, fetchSalonConfig, saveOrde
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { format, isToday, isYesterday, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
+import { printZReportTCP } from '../utils/printer';
 
 const Dashboard = () => {
   const [history, setHistory] = useState([]);
@@ -248,6 +249,26 @@ const Dashboard = () => {
     return calculatedDays;
   }, [filteredHistory, filteredExpenses]);
 
+  const handleExportCSV = () => {
+    let csvContent = "Date,Employée,Détail des Prestations,Total (MAD)\n";
+    filteredHistory.forEach(order => {
+      const orderDate = new Date(order.timestamp || order.date);
+      const dateStr = isNaN(orderDate.getTime()) ? '-' : `${orderDate.toLocaleDateString()} ${orderDate.toLocaleTimeString()}`;
+      const itemsStr = order.items.map(item => `${item.qty}x ${item.name}`).join(' | ');
+      const employee = order.employeeName || 'Inconnu';
+      csvContent += `"${dateStr}","${employee}","${itemsStr}",${order.total.toFixed(2)}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Majolica_Export_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 print:hidden">
@@ -288,11 +309,39 @@ const Dashboard = () => {
           )}
 
           <button 
-            onClick={() => window.print()}
+            onClick={async () => {
+              const savedIp = localStorage.getItem('printer_ip');
+              if (!savedIp) {
+                alert("Veuillez configurer l'adresse IP de l'imprimante dans les Paramètres pour imprimer le Rapport Z.");
+                return;
+              }
+              const reportInfo = {
+                shopName: localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS',
+                date: new Date(),
+                totalSales: totalSales,
+                cashSales: totalSales, // everything is cash for now
+                cardSales: 0,
+                totalExpenses: totalSortiesCaisse,
+                ordersCount: totalTransactions,
+                paperSize: localStorage.getItem('printer_paper_size') || '80mm'
+              };
+              try {
+                await printZReportTCP(savedIp, reportInfo);
+              } catch (e) {
+                alert(e.message);
+              }
+            }}
             className="btn btn-primary flex items-center gap-2 ml-auto"
             title="Imprimer un récapitulatif de la période sélectionnée"
           >
-            <Printer size={18} /> Rapport Z
+            <Printer size={18} /> Bilan de Caisse
+          </button>
+          <button 
+            onClick={handleExportCSV}
+            className="btn bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+            title="Télécharger l'historique en Excel/CSV"
+          >
+            <Upload size={18} className="rotate-180" /> Exporter CSV
           </button>
           <button 
             onClick={() => { setShowImport(true); setImportDone(false); }}

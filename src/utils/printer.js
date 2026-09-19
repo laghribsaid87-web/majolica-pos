@@ -26,7 +26,7 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
     throw new Error("L'adresse IP dyal l'imprimante makhasshach tkon khawya.");
   }
 
-  const { shopName, shopAddress, shopPhone, qrLink, employee, clientName, cart, total, amountReceived, change, date, paperSize } = ticketInfo;
+  const { shopName, shopAddress, shopPhone, qrLink, employee, clientName, cart, total, amountReceived, change, date, paperSize, loyaltyPointsBalance } = ticketInfo;
 
   const maxWidth = paperSize === '58mm' ? 32 : 48;
   const divider = "-".repeat(maxWidth) + "\n\n";
@@ -93,6 +93,12 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
   payload += sizeNormal;
   
   payload += divider;
+  
+  if (loyaltyPointsBalance !== undefined && loyaltyPointsBalance !== null) {
+    payload += alignCenter + boldOn + `Solde Fidelite: ${loyaltyPointsBalance} Points\n\n` + boldOff;
+    payload += divider;
+  }
+
   payload += alignCenter + boldOn + sizeTall + "Merci pour votre visite!\n\n" + sizeNormal + boldOff;
   
   if (qrLink) {
@@ -145,5 +151,81 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
   } catch (error) {
     console.error("Erreur d'impression TCP:", error);
     throw new Error("M9derch ytzda m3a l'imprimante. T'akd mn l'IP w wach l'imprimante cha3la.");
+  }
+};
+
+export const printZReportTCP = async (printerIp, reportInfo) => {
+  if (!printerIp) {
+    throw new Error("L'adresse IP dyal l'imprimante makhasshach tkon khawya.");
+  }
+
+  const { shopName, date, totalSales, cashSales, cardSales, totalExpenses, ordersCount, paperSize } = reportInfo;
+
+  const maxWidth = paperSize === '58mm' ? 32 : 48;
+  const divider = "-".repeat(maxWidth) + "\n\n";
+
+  // Format date
+  const pad = (n) => n.toString().padStart(2, '0');
+  const dateStr = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+  let payload = INIT;
+  
+  // Header
+  payload += "\n\n";
+  payload += alignCenter + boldOn + sizeDouble + (shopName || "MAJOLICA") + "\n\n" + sizeNormal + boldOff;
+  payload += sizeDouble + "BILAN DE CAISSE\n" + sizeNormal;
+  payload += `(Rapport X)\n\n`;
+  
+  // Info
+  payload += alignLeft + sizeTall + `Date: ${dateStr}\nHeure: ${timeStr}\n` + sizeNormal;
+  payload += divider;
+  
+  // Stats
+  payload += sizeTall;
+  payload += `Nombre de tickets : ${ordersCount}\n\n`;
+  payload += `Total Ventes    : ${totalSales.toFixed(2)} MAD\n`;
+  payload += `  Especes       : ${cashSales.toFixed(2)} MAD\n`;
+  if (cardSales) payload += `  Carte/Virement: ${cardSales.toFixed(2)} MAD\n`;
+  payload += `Dépenses/Sorties: ${totalExpenses.toFixed(2)} MAD\n\n`;
+  payload += sizeNormal;
+  
+  payload += divider;
+  
+  // Caisse Attendue
+  payload += boldOn + sizeDouble + `CAISSE ATTENDUE:\n${(cashSales - totalExpenses).toFixed(2)} MAD\n\n` + sizeNormal + boldOff;
+  
+  payload += divider;
+  payload += alignCenter + "Fin du Bilan\n\n\n\n\n";
+
+  // Open drawer and cut paper
+  payload += OPEN_DRAWER;
+  payload += CUT_PAPER;
+
+  // Web fallback
+  if (Capacitor.getPlatform() === 'web') {
+    try {
+      const response = await fetch('http://localhost:3001/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: printerIp, payload })
+      });
+      if (!response.ok) throw new Error("Erreur serveur local.");
+      return { success: true };
+    } catch (error) {
+      console.error("Erreur Web Printing Z:", error);
+      throw new Error("M9derch ytsel b serveur-impression.js.");
+    }
+  }
+
+  // Native TCP
+  try {
+    const { client } = await TcpSocket.connect({ ipAddress: printerIp, port: 9100 });
+    await TcpSocket.send({ client, data: payload });
+    setTimeout(async () => { await TcpSocket.disconnect({ client }); }, 500);
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur d'impression Z:", error);
+    throw new Error("M9derch ytzda m3a l'imprimante.");
   }
 };
