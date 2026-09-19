@@ -1,4 +1,5 @@
 import { TcpSocket } from 'capacitor-tcp-socket';
+import { Capacitor } from '@capacitor/core';
 
 // ESC/POS Commands
 const ESC = String.fromCharCode(0x1B);
@@ -70,6 +71,25 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
   payload += OPEN_DRAWER;
   payload += CUT_PAPER;
 
+  // Si on est sur le navigateur (PC de dev), on utilise le serveur d'impression local Node.js
+  if (Capacitor.getPlatform() === 'web') {
+    try {
+      const response = await fetch('http://localhost:3001/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: printerIp, payload })
+      });
+      if (!response.ok) {
+        throw new Error("Erreur du serveur local. Assurez-vous qu'il est allumé.");
+      }
+      return { success: true, message: "T'imprima mn Chrome b naja7!" };
+    } catch (error) {
+      console.error("Erreur Web Printing:", error);
+      throw new Error("M9derch ytsel b serveur-impression.js. T'akd bli mkhadmo f terminal.");
+    }
+  }
+
+  // Si on est sur Tablette (Android/iOS), on utilise le vrai plugin TCP
   try {
     const { client } = await TcpSocket.connect({
       ipAddress: printerIp,
