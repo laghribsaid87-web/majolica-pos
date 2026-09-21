@@ -15,6 +15,7 @@ import Club from './pages/Club';
 import ClientCardPage from './pages/ClientCardPage';
 import WhatsAppHub from './pages/WhatsAppHub';
 import Inventory from './pages/Inventory';
+import Manuel from './pages/Manuel';
 import { subscribeToAuthChanges, fetchSalonConfig } from './services/api';
 import './index.css';
 
@@ -111,6 +112,7 @@ function App() {
           <Route index element={<POS />} />
           <Route path="pos" element={<POS />} />
           <Route path="reservations" element={<Reservations />} />
+          <Route path="manuel" element={<Manuel />} />
           
           <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
           <Route path="employees" element={<AdminRoute><Employees /></AdminRoute>} />

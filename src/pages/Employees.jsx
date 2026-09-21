@@ -44,6 +44,7 @@ const Employees = () => {
   useEffect(() => {
     loadEmployees();
     fetchHistory().then(setHistory);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddEmployee = async () => {

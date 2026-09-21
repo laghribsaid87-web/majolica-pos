@@ -125,8 +125,6 @@ const Dashboard = () => {
   const netProfit = totalSales - totalExpenses;
   const totalTransactions = filteredHistory.length;
 
-  // Calculate payment sources
-  const totalCaisse = filteredExpenses.filter(e => e.paymentMethod === 'caisse').reduce((sum, e) => sum + e.amount, 0);
   const totalPersonnel = filteredExpenses.filter(e => e.paymentMethod === 'personnel').reduce((sum, e) => sum + e.amount, 0);
 
   // État de Caisse: CA - tout ce qui est sorti de la caisse (achats + avances + retrait patronne)
@@ -139,7 +137,6 @@ const Dashboard = () => {
   const totalRetraitsPatronne = filteredExpenses
     .filter(e => e.category === 'Retrait Patronne')
     .reduce((sum, e) => sum + e.amount, 0);
-  const totalRecuperePatronne = totalPersonnel + totalRetraitsPatronne;
 
   // Specific splits for the cascade view
   const totalAvances = filteredExpenses
@@ -149,27 +146,7 @@ const Dashboard = () => {
     .filter(e => ['Avance Salaire', 'Salaires'].includes(e.category) && e.paymentMethod === 'caisse')
     .reduce((sum, e) => sum + e.amount, 0);
   const totalSortiesCaisseSansAvanceEtRetrait = totalSortiesCaisse - totalAvancesCaisse - totalRetraitsPatronne;
-  const totalPersonnelSansAvance = totalPersonnel - (totalAvances - totalAvancesCaisse);
 
-  // Expense Breakdown
-  const expenseBreakdown = useMemo(() => {
-    const breakdown = {};
-    if (totalSalariesCost > 0) {
-      breakdown['Salaires (Provisionnés)'] = totalSalariesCost;
-    }
-    if (totalRentCost > 0) {
-      breakdown['Loyer (Provisionné)'] = totalRentCost;
-    }
-    if (totalElecCost > 0) {
-      breakdown['Électricité & Eau (Provisionné)'] = totalElecCost;
-    }
-    filteredExpenses.forEach(exp => {
-      if (['Salaires', 'Avance Salaire', 'Loyer', 'Électricité & Eau'].includes(exp.category)) return; // Skip these as they are provisioned
-      const cat = exp.category || 'Autres';
-      breakdown[cat] = (breakdown[cat] || 0) + exp.amount;
-    });
-    return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
-  }, [filteredExpenses, totalSalariesCost, totalRentCost, totalElecCost]);
 
   // Aggregate stats by employee
   const employeeStats = useMemo(() => {
@@ -231,19 +208,18 @@ const Dashboard = () => {
     const sortedDays = Object.values(days).sort((a, b) => a.date.localeCompare(b.date));
     
     // Calculate running totals
-    let soldePocheCumul = 0;
-    
-    const calculatedDays = sortedDays.map(day => {
+    const calculatedDays = sortedDays.reduce((acc, day) => {
       const recetteCaisse = day.ca - day.sortieCaisse;
       const fluxPocheJour = recetteCaisse - day.sortiePoche;
-      soldePocheCumul += fluxPocheJour;
+      const prevSolde = acc.length > 0 ? acc[acc.length - 1].soldePocheCumul : 0;
       
-      return {
+      acc.push({
         ...day,
         recetteCaisse,
-        soldePocheCumul
-      };
-    });
+        soldePocheCumul: prevSolde + fluxPocheJour
+      });
+      return acc;
+    }, []);
 
     // Return ascending (oldest first)
     return calculatedDays;

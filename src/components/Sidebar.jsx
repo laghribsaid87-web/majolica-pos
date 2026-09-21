@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, Calendar, Settings, BarChart3, Menu, X, Star, ShoppingBag, LogOut, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, AlertCircle, MessageSquare, Package } from 'lucide-react';
+import { LayoutGrid, Users, Calendar, Settings, BarChart3, Menu, X, Star, ShoppingBag, LogOut, ChevronLeft, ChevronRight, Eye, EyeOff, Lock, Unlock, AlertCircle, MessageSquare, Package, BookOpen } from 'lucide-react';
 import { logoutUser, fetchSalonConfig } from '../services/api';
 
 const Sidebar = ({ isAdmin: isBaseAdmin, adminOverride, setAdminOverride }) => {

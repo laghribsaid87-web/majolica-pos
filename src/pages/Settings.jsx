@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2, BookOpen } from 'lucide-react';
 import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig, fetchProducts, migrateLocalDataToFirebase } from '../services/api';
 
 const Settings = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp', 'admin', 'printer', 'pos', 'loyalty'
   const [status, setStatus] = useState('starting'); // 'starting', 'qr', 'connected', 'error'
   const [qrCode, setQrCode] = useState('');
@@ -179,6 +181,12 @@ const Settings = () => {
             className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'loyalty' ? 'bg-pink-100 text-pink-700 shadow-sm border border-pink-200' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'}`}
           >
             <Gift size={18} /> Fidélité & Récompenses
+          </button>
+          <button 
+            onClick={() => navigate('/manuel')}
+            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 ml-auto`}
+          >
+            <BookOpen size={18} /> Manuel d'Utilisation
           </button>
         </div>
 
