@@ -16,7 +16,13 @@ import ClientCardPage from './pages/ClientCardPage';
 import WhatsAppHub from './pages/WhatsAppHub';
 import Inventory from './pages/Inventory';
 import Manuel from './pages/Manuel';
-import { subscribeToAuthChanges, fetchSalonConfig } from './services/api';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import SubscriptionExpired from './pages/SubscriptionExpired';
+import Terms from './pages/Terms';
+import SupportButton from './components/SupportButton';
+import { subscribeToAuthChanges, fetchSalonConfig, setSalonId, getSalonId } from './services/api';
+import { db } from './services/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import './index.css';
 
 const InternalLayout = ({ isAdmin, adminOverride, setAdminOverride }) => {
@@ -45,6 +51,8 @@ function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [isAdmin, setIsAdmin] = useState(true);
   const [adminOverride, setAdminOverride] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState(true);
 
   const effectiveIsAdmin = isAdmin || adminOverride;
 
@@ -54,8 +62,46 @@ function App() {
       
       if (currentUser) {
         try {
-          const config = await fetchSalonConfig();
           const userEmail = currentUser.email?.trim().toLowerCase() || '';
+
+          // 1. Check Super Admin
+          if (userEmail === 'superadmin@majolica.ma' || userEmail === 'laghrib.said@gmail.com') {
+            setIsSuperAdmin(true);
+            setLoadingAuth(false);
+            return;
+          }
+
+          // 2. Resolve Salon ID for standard users
+          if (userEmail !== 'offline_admin' && userEmail !== 'offline_cashier') {
+            const q = query(collection(db, 'salons'), where('adminEmail', '==', userEmail));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              const salonDoc = snap.docs[0];
+              const sId = salonDoc.id;
+              const salonData = salonDoc.data();
+              setSalonId(sId);
+              localStorage.setItem('saas_salon_id', sId);
+              
+              // Check Subscription
+              const now = new Date();
+              const subEnd = salonData.subscriptionEnd ? new Date(salonData.subscriptionEnd) : new Date(8640000000000000);
+              
+              if (!salonData.isActive || now > subEnd) {
+                setIsSubscriptionActive(false);
+              } else {
+                setIsSubscriptionActive(true);
+              }
+
+              // Optional: Store feature flags globally if needed later
+              localStorage.setItem('saas_salon_features', JSON.stringify(salonData.features || {}));
+            } else {
+              // Not found? Maybe they don't have a subscription yet
+              console.warn("Utilisateur sans salon SaaS assigné");
+            }
+          }
+
+          // 3. Admin permissions logic
+          const config = await fetchSalonConfig();
           const adminEmail = config?.adminEmail?.trim().toLowerCase() || '';
 
           if (userEmail === 'offline_admin') {
@@ -63,7 +109,7 @@ function App() {
           } else if (userEmail === 'offline_cashier') {
             setIsAdmin(false);
           } else if (!adminEmail) {
-            setIsAdmin(true); // If no admin is configured, allow full access
+            setIsAdmin(true);
           } else {
             setIsAdmin(userEmail === adminEmail);
           }
@@ -90,6 +136,9 @@ function App() {
     if (!user) {
       return <Navigate to="/login" replace />;
     }
+    if (!isSuperAdmin && !isSubscriptionActive) {
+      return <SubscriptionExpired />;
+    }
     return children;
   };
 
@@ -101,12 +150,22 @@ function App() {
     return children;
   };
 
+  // Super-Admin Route wrapper
+  const SuperAdminRoute = ({ children }) => {
+    if (!isSuperAdmin) {
+      return <Navigate to="/" replace />;
+    }
+    return children;
+  };
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/reserver" element={<Booking />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="/carte/:phone" element={<ClientCardPage />} />
-        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/login" element={user ? (isSuperAdmin ? <Navigate to="/super-admin" replace /> : <Navigate to="/" replace />) : <Login />} />
+        <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
         
         <Route path="/" element={<ProtectedRoute><InternalLayout isAdmin={isAdmin} adminOverride={adminOverride} setAdminOverride={setAdminOverride} /></ProtectedRoute>}>
           <Route index element={<POS />} />
@@ -126,6 +185,7 @@ function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <SupportButton />
     </BrowserRouter>
   );
 }

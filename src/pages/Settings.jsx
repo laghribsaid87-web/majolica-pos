@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { useNavigate } from 'react-router-dom';
-import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2, BookOpen } from 'lucide-react';
+import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2, BookOpen, Image as ImageIcon } from 'lucide-react';
 import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig, fetchProducts, migrateLocalDataToFirebase } from '../services/api';
+import imageCompression from 'browser-image-compression';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -34,12 +35,13 @@ const Settings = () => {
   const [loyaltyRewards, setLoyaltyRewards] = useState([]);
   const [products, setProducts] = useState([]);
 
-  const [printerIp, setPrinterIp] = useState(localStorage.getItem('printer_ip') || '');
-  const [ticketShopName, setTicketShopName] = useState(localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS');
-  const [ticketAddress, setTicketAddress] = useState(localStorage.getItem('ticket_address') || 'Tanger, Maroc');
-  const [ticketPhone, setTicketPhone] = useState(localStorage.getItem('ticket_phone') || '06 00 00 00 00');
-  const [ticketQrLink, setTicketQrLink] = useState(localStorage.getItem('ticket_qr_link') || '');
-  const [printerPaperSize, setPrinterPaperSize] = useState(localStorage.getItem('printer_paper_size') || '80mm');
+  const [printerIp, setPrinterIp] = useState('');
+  const [ticketShopName, setTicketShopName] = useState('MAJOLICA POS');
+  const [ticketAddress, setTicketAddress] = useState('Tanger, Maroc');
+  const [ticketPhone, setTicketPhone] = useState('06 00 00 00 00');
+  const [ticketQrLink, setTicketQrLink] = useState('');
+  const [printerPaperSize, setPrinterPaperSize] = useState('80mm');
+  const [ticketLogo, setTicketLogo] = useState('');
   const [isPrinterSaved, setIsPrinterSaved] = useState(false);
 
   useEffect(() => {
@@ -53,6 +55,14 @@ const Settings = () => {
       setLoyaltyEnabled(config?.loyaltyEnabled || false);
       setLoyaltyPointsPerDh((config?.loyaltyPointsPerDh || 1).toString());
       setLoyaltyRewards(config?.loyaltyRewards || []);
+
+      setPrinterIp(config?.printerIp || localStorage.getItem('printer_ip') || '');
+      setTicketShopName(config?.ticketShopName || localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS');
+      setTicketAddress(config?.ticketAddress || localStorage.getItem('ticket_address') || 'Tanger, Maroc');
+      setTicketPhone(config?.ticketPhone || localStorage.getItem('ticket_phone') || '06 00 00 00 00');
+      setTicketQrLink(config?.ticketQrLink || localStorage.getItem('ticket_qr_link') || '');
+      setPrinterPaperSize(config?.printerPaperSize || localStorage.getItem('printer_paper_size') || '80mm');
+      setTicketLogo(config?.ticketLogo || '');
     });
     fetchProducts().then(setProducts);
   }, []);
@@ -71,21 +81,53 @@ const Settings = () => {
       adminPin: adminPin.trim(),
       loyaltyEnabled,
       loyaltyPointsPerDh: parseFloat(loyaltyPointsPerDh) || 1,
-      loyaltyRewards
+      loyaltyRewards,
+      printerIp,
+      ticketShopName,
+      ticketAddress,
+      ticketPhone,
+      ticketQrLink,
+      printerPaperSize,
+      ticketLogo
     });
     setIsConfigSaved(true);
     setTimeout(() => setIsConfigSaved(false), 3000);
   };
 
-  const handleSavePrinterConfig = () => {
+  const handleSavePrinterConfig = async () => {
+    // Keep local storage for backwards compatibility with offline printing scripts
     localStorage.setItem('printer_ip', printerIp);
     localStorage.setItem('ticket_shop_name', ticketShopName);
     localStorage.setItem('ticket_address', ticketAddress);
     localStorage.setItem('ticket_phone', ticketPhone);
     localStorage.setItem('ticket_qr_link', ticketQrLink);
     localStorage.setItem('printer_paper_size', printerPaperSize);
+    
+    await handleSaveFixedCharges(); // Save all to Firebase
     setIsPrinterSaved(true);
     setTimeout(() => setIsPrinterSaved(false), 3000);
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        const options = {
+          maxSizeMB: 0.1, // compress to max 100KB (base64 string will be manageable)
+          maxWidthOrHeight: 300, // ticket printers are low res
+          useWebWorker: true
+        };
+        const compressedFile = await imageCompression(file, options);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setTicketLogo(reader.result);
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error("Compression error:", error);
+        alert("Erreur lors de la compression de l'image.");
+      }
+    }
   };
 
   const handleCreateAccount = async (e) => {
@@ -112,7 +154,7 @@ const Settings = () => {
     
     const checkStatus = async () => {
       try {
-        const response = await fetch('https://majolica.136.116.62.73.nip.io/api/whatsapp-status');
+        const response = await fetch('https://majolica.13.60.221.74.nip.io/api/whatsapp-status');
         const data = await response.json();
         
         setStatus(data.status);
@@ -251,7 +293,7 @@ const Settings = () => {
                           const phone = window.prompt("Veuillez entrer le numéro WhatsApp (ex: 212612345678) pour recevoir un code à 8 chiffres :");
                           if (phone) {
                             setIsRequestingPairing(true);
-                            fetch('https://majolica.136.116.62.73.nip.io/api/request-pairing-code', {
+                            fetch('https://majolica.13.60.221.74.nip.io/api/request-pairing-code', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ phone })
@@ -278,7 +320,7 @@ const Settings = () => {
                           if(window.confirm("Voulez-vous forcer la réinitialisation ? Utilisez ceci si le scan ne marche pas ou pour changer de téléphone.")) {
                             setStatus('starting');
                             try {
-                              await fetch('https://majolica.136.116.62.73.nip.io/api/whatsapp-logout', { method: 'POST' });
+                              await fetch('https://majolica.13.60.221.74.nip.io/api/whatsapp-logout', { method: 'POST' });
                             } catch(e) {}
                           }
                         }}
@@ -304,7 +346,7 @@ const Settings = () => {
                     if(window.confirm("Voulez-vous vraiment déconnecter ce numéro WhatsApp pour en utiliser un autre ?")) {
                       setStatus('starting');
                       try {
-                        await fetch('https://majolica.136.116.62.73.nip.io/api/whatsapp-logout', { method: 'POST' });
+                        await fetch('https://majolica.13.60.221.74.nip.io/api/whatsapp-logout', { method: 'POST' });
                       } catch(e) {}
                     }
                   }}
@@ -578,6 +620,42 @@ const Settings = () => {
                 <label>Lien Réservation (QR Code)</label>
                 <input type="text" value={ticketQrLink} onChange={(e) => setTicketQrLink(e.target.value)} className="input-field" placeholder="Ex: https://majolicabeauty.com/booking" />
                 <p className="text-xs text-gray-400 mt-1">Un code QR sera généré à la fin du ticket si ce champ est rempli.</p>
+              </div>
+
+              <div className="input-group">
+                <label>Logo du Salon</label>
+                <div className="flex items-center gap-4">
+                  {ticketLogo ? (
+                    <div className="relative w-16 h-16 border rounded bg-gray-50 flex items-center justify-center shrink-0">
+                      <img src={ticketLogo} alt="Logo" className="max-w-full max-h-full object-contain" />
+                      <button 
+                        onClick={() => setTicketLogo('')}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 border border-dashed rounded bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+                      <ImageIcon size={24} />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleLogoUpload}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-50 file:text-indigo-700
+                        hover:file:bg-indigo-100 cursor-pointer
+                      "
+                    />
+                    <p className="text-xs text-gray-400 mt-1">L'image sera automatiquement compressée (NB pour impression thermique).</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

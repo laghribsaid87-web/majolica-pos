@@ -45,7 +45,7 @@ ${cardLink}
 Veuillez présenter cette carte virtuelle (ou le QR code) lors de votre prochain passage en salon pour profiter de vos avantages exclusifs ! 💅✨`;
     
     try {
-      const response = await fetch('https://majolica.136.116.62.73.nip.io/api/send-whatsapp', {
+      const response = await fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

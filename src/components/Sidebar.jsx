@@ -10,6 +10,30 @@ const Sidebar = ({ isAdmin: isBaseAdmin, adminOverride, setAdminOverride }) => {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   
+  const [features, setFeatures] = useState({
+    whatsapp: true,
+    club: true,
+    expenses: true,
+    catalog: true
+  });
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('saas_salon_features');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setFeatures({
+          whatsapp: parsed.whatsapp !== false,
+          club: parsed.club !== false,
+          expenses: parsed.expenses !== false,
+          catalog: parsed.catalog !== false
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const isAdmin = isBaseAdmin || adminOverride;
   
   const navigate = useNavigate();
@@ -112,28 +136,37 @@ const Sidebar = ({ isAdmin: isBaseAdmin, adminOverride, setAdminOverride }) => {
                 <Star size={20} className="shrink-0" />
                 {!isCollapsed && <span className="whitespace-nowrap">Fichier Client</span>}
               </NavLink>
-              <NavLink to="/catalog" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Prestations">
-                <ShoppingBag size={20} className="shrink-0" />
-                {!isCollapsed && <span className="whitespace-nowrap">Prestations</span>}
-              </NavLink>
+              {features.catalog && (
+                <NavLink to="/catalog" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Prestations">
+                  <ShoppingBag size={20} className="shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">Prestations</span>}
+                </NavLink>
+              )}
               <NavLink to="/inventory" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Inventaire & Stock">
                 <Package size={20} className="shrink-0" />
                 {!isCollapsed && <span className="whitespace-nowrap">Inventaire & Stock</span>}
               </NavLink>
-              <NavLink to="/whatsapp-hub" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Hub WhatsApp">
-                <MessageSquare size={20} className="shrink-0" />
-                {!isCollapsed && <span className="whitespace-nowrap">Hub WhatsApp</span>}
-              </NavLink>
+              
+              {features.whatsapp && (
+                <NavLink to="/whatsapp-hub" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Hub WhatsApp">
+                  <MessageSquare size={20} className="shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">Hub WhatsApp</span>}
+                </NavLink>
+              )}
 
-              <NavLink to="/club" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Abonnements">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect width="20" height="14" x="2" y="5" rx="2" ry="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                {!isCollapsed && <span className="whitespace-nowrap">Abonnements</span>}
-              </NavLink>
+              {features.club && (
+                <NavLink to="/club" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Abonnements">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect width="20" height="14" x="2" y="5" rx="2" ry="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                  {!isCollapsed && <span className="whitespace-nowrap">Abonnements</span>}
+                </NavLink>
+              )}
 
-              <NavLink to="/expenses" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Dépenses">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-wallet shrink-0"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a8 8 0 0 1-5 7.59l-9.74-4.87a2 2 0 0 1-.86-2.76A2 2 0 0 1 7.27 15h2"/><path d="M22 12h-4a2 2 0 0 0 0 4h4"/></svg>
-                {!isCollapsed && <span className="whitespace-nowrap">Dépenses</span>}
-              </NavLink>
+              {features.expenses && (
+                <NavLink to="/expenses" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Dépenses">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-wallet shrink-0"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a8 8 0 0 1-5 7.59l-9.74-4.87a2 2 0 0 1-.86-2.76A2 2 0 0 1 7.27 15h2"/><path d="M22 12h-4a2 2 0 0 0 0 4h4"/></svg>
+                  {!isCollapsed && <span className="whitespace-nowrap">Dépenses</span>}
+                </NavLink>
+              )}
               
               <NavLink to="/employees" onClick={() => setIsOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 w-12 h-12' : ''}`} title="Employés">
                 <Users size={20} className="shrink-0" />

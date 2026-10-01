@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { format, addDays, isSameDay } from "date-fns";
+import { format, addDays, isSameDay, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { fetchReservations, saveReservation, subscribeToEmployees, subscribeToProducts, fetchAdminPhone } from "../services/api";
 import { Check, ChevronRight, CheckCircle, ArrowLeft, X, Star, Clock, MessageCircle, ShoppingBag, ChevronUp, ChevronDown, Sparkles } from "lucide-react";
@@ -332,7 +332,59 @@ const Booking = () => {
                   </button>
                 );
               })}
+              {/* Autre Date Button */}
+              {(() => {
+                const isCustom = !availableDates.some(d => isSameDay(selectedDate, d));
+                return (
+                  <div className={"relative flex flex-col items-center justify-center min-w-[70px] py-3.5 rounded-2xl border-2 transition-all shrink-0 " + (isCustom ? "bg-rose-500 border-rose-500 text-white shadow-lg" : "bg-white border-gray-100 text-gray-700")}>
+                    <span className={"text-xs font-semibold uppercase mb-1 " + (isCustom ? "text-rose-100" : "text-gray-400")}>
+                      {isCustom ? format(selectedDate, "EEE", { locale: fr }) : "📅"}
+                    </span>
+                    <span className="text-sm font-black">
+                      {isCustom ? format(selectedDate, "d") : "Autre"}
+                    </span>
+                    <span className={"text-xs font-semibold uppercase mt-0.5 " + (isCustom ? "text-rose-100" : "text-gray-400")}>
+                      {isCustom ? format(selectedDate, "MMM", { locale: fr }) : "Date"}
+                    </span>
+                    <input 
+                      type="date" 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                      value={format(selectedDate, 'yyyy-MM-dd')}
+                      onClick={(e) => { try { e.target.showPicker(); } catch(err){} }}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const newDate = new Date(e.target.value);
+                          if (newDate >= new Date(new Date().setHours(0,0,0,0))) {
+                             setSelectedDate(newDate);
+                             setSelectedTime("");
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* Selected Date Confirmation */}
+            <div className="bg-rose-50/80 border border-rose-100 rounded-2xl p-4 mb-7 text-center">
+              <div className="text-sm text-gray-600 mb-1">Vous avez sélectionné le</div>
+              <div className="text-lg font-black text-rose-600 mb-1 capitalize">
+                {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
+              </div>
+              <div className="text-xs font-bold text-rose-400 bg-rose-100/50 inline-block px-3 py-1 rounded-full">
+                {(() => {
+                  const daysLeft = differenceInDays(
+                    new Date(new Date(selectedDate).setHours(0,0,0,0)), 
+                    new Date(new Date().setHours(0,0,0,0))
+                  );
+                  if (daysLeft === 0) return "C'est aujourd'hui ! ✨";
+                  if (daysLeft === 1) return "C'est demain ! 🌸";
+                  return `Dans ${daysLeft} jours`;
+                })()}
+              </div>
+            </div>
+
             <h2 className="font-bold text-gray-800 text-base mb-4">Choisissez une heure</h2>
             {availableTimeSlots.length === 0 ? (
               <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-2xl text-sm">

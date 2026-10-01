@@ -127,7 +127,7 @@ const Reservations = () => {
       
       if (clientPhone) {
         const cancelMsg = `Bonjour ${clientName || 'chère cliente'},\n\nNous sommes au regret de vous informer que votre rendez-vous chez Majolica a été annulé pour la raison suivante :\n"${reason || 'Indisponibilité exceptionnelle'}"\n\nVeuillez nous en excuser. Nous serons ravis de vous accueillir une prochaine fois ! ✨`;
-        fetch('https://majolica.136.116.62.73.nip.io/api/send-whatsapp', {
+        fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: clientPhone, message: cancelMsg })
@@ -212,6 +212,60 @@ const Reservations = () => {
                 </button>
               )
             })}
+            {/* Autre Date Button */}
+            {(() => {
+              const isCustom = !next7Days.some(d => format(d, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'));
+              const frDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(selectedDate);
+              const displayDay = frDay.charAt(0).toUpperCase() + frDay.slice(1);
+              return (
+                <div className={`relative flex flex-col items-center justify-center min-w-[100px] border rounded-xl cursor-pointer overflow-hidden group transition-all ${
+                  isCustom 
+                    ? 'bg-secondary text-white border-secondary shadow-md' 
+                    : 'bg-white/60 text-secondary border-gray-200 hover:bg-white'
+                }`}>
+                  <span className="font-bold text-sm z-10 flex items-center gap-1">
+                    {isCustom ? displayDay : <><span className="text-lg">📅</span> Autre</>}
+                  </span>
+                  <span className={`text-xs z-10 ${isCustom ? 'opacity-90' : 'text-gray-500 group-hover:text-primary'}`}>
+                    {isCustom ? format(selectedDate, 'dd/MM') : "Choisir"}
+                  </span>
+                  <input 
+                    type="date" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                    value={format(selectedDate, 'yyyy-MM-dd')}
+                    onClick={(e) => { try { e.target.showPicker(); } catch(err){} }}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setSelectedDate(new Date(e.target.value));
+                      }
+                    }}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Selected Date Confirmation Banner */}
+          <div className="bg-rose-50 border border-rose-100 rounded-xl px-4 py-3 mb-4 flex items-center justify-between shadow-sm">
+            <div className="text-rose-700 font-bold flex items-center gap-2 capitalize">
+              <span className="text-xl">📅</span> 
+              Agenda du {new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(selectedDate)}
+            </div>
+            <div className="text-sm font-bold text-rose-500 bg-white px-3 py-1 rounded-lg border border-rose-100 shadow-sm">
+              {(() => {
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const selected = new Date(selectedDate);
+                selected.setHours(0,0,0,0);
+                const diffTime = selected - today;
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays === 0) return "Aujourd'hui ✨";
+                if (diffDays === 1) return "Demain 🌸";
+                if (diffDays === -1) return "Hier";
+                if (diffDays < 0) return `Il y a ${Math.abs(diffDays)} jours`;
+                return `Dans ${diffDays} jours`;
+              })()}
+            </div>
           </div>
 
           {/* Agenda Board */}

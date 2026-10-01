@@ -298,7 +298,7 @@ const POS = () => {
         }
       }
 
-      fetch('https://majolica.136.116.62.73.nip.io/api/send-whatsapp', {
+      fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

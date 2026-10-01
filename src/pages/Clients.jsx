@@ -103,7 +103,7 @@ const Clients = () => {
     
     const msg = window.prompt("Message marketing (Pub/Rappel) à envoyer :", defaultMsg);
     if (msg) {
-      fetch('https://majolica.136.116.62.73.nip.io/api/send-whatsapp', {
+      fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: client.phone, message: msg })
@@ -146,7 +146,7 @@ const Clients = () => {
         personalizedMsg = parseSpintax(personalizedMsg);
 
         try {
-          await fetch('https://majolica.136.116.62.73.nip.io/api/send-whatsapp', {
+          await fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: phone, message: personalizedMsg })

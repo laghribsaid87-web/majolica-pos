@@ -3,6 +3,24 @@ import { db, auth, isFirebaseConfigured } from './firebase';
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, orderBy, limit, addDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 
+export let currentSalonId = 'majolica_default';
+
+export const setSalonId = (id) => {
+  currentSalonId = id;
+};
+
+export const getSalonId = () => {
+  // Try memory first
+  if (currentSalonId && currentSalonId !== 'majolica_default') return currentSalonId;
+  // Try localStorage
+  const local = localStorage.getItem('saas_salon_id');
+  if (local) {
+    currentSalonId = local;
+    return local;
+  }
+  return 'majolica_default';
+};
+
 export const PRODUCTS = [
   // MANUCURE
   { id: 1, name: 'Manucure classique', price: 80.00, clubPrice: 60.00, category: 'Manucure', icon: '💅', duration: 45 },
@@ -242,7 +260,7 @@ export const deleteProduct = async (id) => {
 
 export const fetchWhatsAppLogs = async () => {
   if (isFirebaseConfigured) {
-    const q = query(collection(db, 'whatsapp_logs'), orderBy('timestamp', 'desc'), limit(50));
+    const q = query(collection(db, 'whatsapp_logs'), where('salonId', '==', getSalonId()), orderBy('timestamp', 'desc'), limit(50));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
@@ -251,7 +269,7 @@ export const fetchWhatsAppLogs = async () => {
 
 export const subscribeToWhatsAppLogs = (callback) => {
   if (isFirebaseConfigured) {
-    const q = query(collection(db, 'whatsapp_logs'), orderBy('timestamp', 'asc')); // asc so oldest is first in chat
+    const q = query(collection(db, 'whatsapp_logs'), where('salonId', '==', getSalonId()), orderBy('timestamp', 'asc')); // asc so oldest is first in chat
     return onSnapshot(q, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       callback(logs);
@@ -273,7 +291,7 @@ export const sendAndLogWhatsAppMessage = async (phone, message) => {
       formattedPhone = formattedPhone.substring(1);
     }
 
-    const response = await fetch('https://majolica.136.116.62.73.nip.io/api/send-whatsapp', {
+    const response = await fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: formattedPhone, message })
@@ -286,6 +304,7 @@ export const sendAndLogWhatsAppMessage = async (phone, message) => {
     
     if (isFirebaseConfigured) {
       await addDoc(collection(db, 'whatsapp_logs'), {
+        salonId: getSalonId(),
         to: phone,
         body: message,
         status: 'sent',
@@ -296,6 +315,7 @@ export const sendAndLogWhatsAppMessage = async (phone, message) => {
   } catch (err) {
     if (isFirebaseConfigured) {
       await addDoc(collection(db, 'whatsapp_logs'), {
+        salonId: getSalonId(),
         to: phone,
         body: message,
         status: 'failed',
@@ -310,13 +330,13 @@ export const sendAndLogWhatsAppMessage = async (phone, message) => {
 export const fetchAdminPhone = async () => {
   if (isFirebaseConfigured) {
     try {
-      const d = await getDoc(doc(db, 'settings', 'admin_phone'));
+      const d = await getDoc(doc(db, 'salons', getSalonId(), 'settings', 'admin_phone'));
       if (d.exists()) return d.data().phone;
       else {
         const local = localStorage.getItem('majolica_admin_phone');
         if (local) {
           console.log("Migrating admin phone to Firebase...");
-          await setDoc(doc(db, 'settings', 'admin_phone'), { phone: local });
+          await setDoc(doc(db, 'salons', getSalonId(), 'settings', 'admin_phone'), { phone: local });
           return local;
         }
       }
@@ -328,7 +348,7 @@ export const fetchAdminPhone = async () => {
 export const saveAdminPhone = async (phone) => {
   if (isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, 'settings', 'admin_phone'), { phone });
+      await setDoc(doc(db, 'salons', getSalonId(), 'settings', 'admin_phone'), { phone });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -338,7 +358,7 @@ export const saveAdminPhone = async (phone) => {
 export const fetchSalonConfig = async () => {
   if (isFirebaseConfigured) {
     try {
-      const d = await getDoc(doc(db, 'settings', 'salon_config'));
+      const d = await getDoc(doc(db, 'salons', getSalonId(), 'settings', 'salon_config'));
       if (d.exists()) return d.data();
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -348,7 +368,7 @@ export const fetchSalonConfig = async () => {
 export const saveSalonConfig = async (config) => {
   if (isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, 'settings', 'salon_config'), config);
+      await setDoc(doc(db, 'salons', getSalonId(), 'settings', 'salon_config'), config);
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -358,7 +378,8 @@ export const saveSalonConfig = async (config) => {
 export const fetchHistory = async () => {
   if (isFirebaseConfigured) {
     try {
-      const snap = await getDocs(collection(db, 'history'));
+      const q = query(collection(db, 'history'), where('salonId', '==', getSalonId()));
+      const snap = await getDocs(q);
       if (!snap.empty) {
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } else {
@@ -369,6 +390,7 @@ export const fetchHistory = async () => {
             console.log("Migrating history to Firebase...");
             for (const item of parsed) {
               item.id = item.id || Date.now().toString() + Math.random().toString(36).substr(2, 5);
+              item.salonId = getSalonId();
               await setDoc(doc(db, 'history', item.id.toString()), item);
             }
             return parsed;
@@ -384,6 +406,7 @@ export const fetchHistory = async () => {
 export const saveOrder = async (orderData) => {
   orderData.id = orderData.id || Date.now().toString();
   orderData.timestamp = orderData.timestamp || new Date().toISOString();
+  orderData.salonId = getSalonId();
   
   if (isFirebaseConfigured) {
     try {
@@ -406,9 +429,10 @@ export const saveOrder = async (orderData) => {
 export const fetchReservations = async () => {
   if (isFirebaseConfigured) {
     try {
-      const snap = await getDocs(collection(db, 'reservations'));
+      const q = query(collection(db, 'reservations'), where('salonId', '==', getSalonId()));
+      const snap = await getDocs(q);
       if (!snap.empty) {
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => !r.deletedAt);
       } else {
         const res = localStorage.getItem('majolica_reservations');
         if (res) {
@@ -417,6 +441,7 @@ export const fetchReservations = async () => {
             console.log("Migrating reservations to Firebase...");
             for (const item of parsed) {
               item.id = item.id || Date.now().toString() + Math.random().toString(36).substr(2, 5);
+              item.salonId = getSalonId();
               await setDoc(doc(db, 'reservations', item.id.toString()), item);
             }
             return parsed;
@@ -433,6 +458,7 @@ export const fetchReservations = async () => {
 export const saveReservation = async (reservation) => {
   reservation.id = reservation.id || Date.now().toString();
   if (!reservation.status) reservation.status = 'Confirmé';
+  reservation.salonId = getSalonId();
   
   if (isFirebaseConfigured) {
     try {
@@ -483,7 +509,7 @@ export const updateReservation = async (updatedRes) => {
 export const deleteReservation = async (resId) => {
   if (isFirebaseConfigured) {
     try {
-      await deleteDoc(doc(db, 'reservations', resId.toString()));
+      await updateDoc(doc(db, 'reservations', resId.toString()), { deletedAt: new Date().toISOString() });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -497,9 +523,10 @@ export const fetchEmployees = async () => {
 
   if (isFirebaseConfigured) {
     try {
-      const snap = await getDocs(collection(db, 'employees'));
+      const q = query(collection(db, 'employees'), where('salonId', '==', getSalonId()));
+      const snap = await getDocs(q);
       if (!snap.empty) {
-        _cache.employees = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        _cache.employees = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(e => !e.deletedAt);
         return _cache.employees;
       } else {
         const empStr = localStorage.getItem('majolica_employees');
@@ -508,6 +535,7 @@ export const fetchEmployees = async () => {
           console.log("Migrating employees to Firebase...");
           for (const item of localData) {
             item.id = item.id || Date.now().toString() + Math.random().toString(36).substr(2, 5);
+            item.salonId = getSalonId();
             await setDoc(doc(db, 'employees', item.id.toString()), item);
           }
           _cache.employees = localData;
@@ -527,7 +555,8 @@ export const subscribeToEmployees = (callback) => {
   callback(localData);
 
   if (isFirebaseConfigured) {
-    const unsubscribe = onSnapshot(collection(db, 'employees'), (snap) => {
+    const q = query(collection(db, 'employees'), where('salonId', '==', getSalonId()));
+    const unsubscribe = onSnapshot(q, (snap) => {
       if (!snap.empty) {
         const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         localStorage.setItem('majolica_employees', JSON.stringify(fetched));
@@ -544,6 +573,7 @@ export const saveEmployee = async (employee) => {
   employee.id = employee.id || Date.now().toString();
   employee.status = employee.status || 'Actif';
   employee.sales = employee.sales || 0;
+  employee.salonId = getSalonId();
   _cache.employees = null; // Invalidate cache
   
   if (isFirebaseConfigured) {
@@ -567,7 +597,7 @@ export const deleteEmployee = async (id) => {
   _cache.employees = null; // Invalidate cache
   if (isFirebaseConfigured) {
     try {
-      await deleteDoc(doc(db, 'employees', id.toString()));
+      await updateDoc(doc(db, 'employees', id.toString()), { deletedAt: new Date().toISOString() });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -599,6 +629,13 @@ export const loginUser = async (email, password) => {
     // We dispatch a custom event to notify App.jsx of the manual login
     window.dispatchEvent(new Event('offline_auth_changed'));
     return { email: 'offline_admin' };
+  }
+
+  // Bypass for Super Admin testing
+  if ((safeEmail === 'superadmin@majolica.ma' || safeEmail === 'laghrib.said@gmail.com') && safePassword === 'admin123') {
+    localStorage.setItem('majolica_offline_auth', 'superadmin');
+    window.dispatchEvent(new Event('offline_auth_changed'));
+    return { email: safeEmail };
   }
 
   if (isFirebaseConfigured && auth) {
@@ -633,6 +670,7 @@ export const subscribeToAuthChanges = (callback) => {
     const isOfflineAuth = localStorage.getItem('majolica_offline_auth');
     if (isOfflineAuth === 'cashier') return { email: 'offline_cashier' };
     if (isOfflineAuth === 'true') return { email: 'offline_admin' };
+    if (isOfflineAuth === 'superadmin') return { email: 'superadmin@majolica.ma' };
     return null;
   };
 
@@ -668,7 +706,7 @@ export const subscribeToAuthChanges = (callback) => {
 export const fetchDeletedClients = async () => {
   if (isFirebaseConfigured) {
     try {
-      const d = await getDoc(doc(db, 'settings', 'deleted_clients'));
+      const d = await getDoc(doc(db, 'salons', getSalonId(), 'settings', 'deleted_clients'));
       if (d.exists()) return d.data().list || [];
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -678,7 +716,7 @@ export const fetchDeletedClients = async () => {
 export const saveDeletedClients = async (list) => {
   if (isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, 'settings', 'deleted_clients'), { list });
+      await setDoc(doc(db, 'salons', getSalonId(), 'settings', 'deleted_clients'), { list });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -688,7 +726,7 @@ export const saveDeletedClients = async (list) => {
 export const fetchBlockedClients = async () => {
   if (isFirebaseConfigured) {
     try {
-      const d = await getDoc(doc(db, 'settings', 'blocked_clients'));
+      const d = await getDoc(doc(db, 'salons', getSalonId(), 'settings', 'blocked_clients'));
       if (d.exists()) return d.data().list || [];
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -698,7 +736,7 @@ export const fetchBlockedClients = async () => {
 export const saveBlockedClients = async (list) => {
   if (isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, 'settings', 'blocked_clients'), { list });
+      await setDoc(doc(db, 'salons', getSalonId(), 'settings', 'blocked_clients'), { list });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -710,7 +748,7 @@ export const saveBlockedClients = async (list) => {
 export const fetchClubMembers = async () => {
   if (isFirebaseConfigured) {
     try {
-      const d = await getDoc(doc(db, 'settings', 'club_members'));
+      const d = await getDoc(doc(db, 'salons', getSalonId(), 'settings', 'club_members'));
       if (d.exists()) return d.data().list || [];
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -728,7 +766,7 @@ export const saveClubMember = async (member) => {
   
   if (isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, 'settings', 'club_members'), { list: members });
+      await setDoc(doc(db, 'salons', getSalonId(), 'settings', 'club_members'), { list: members });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -741,7 +779,7 @@ export const deleteClubMember = async (phone) => {
   
   if (isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, 'settings', 'club_members'), { list: members });
+      await setDoc(doc(db, 'salons', getSalonId(), 'settings', 'club_members'), { list: members });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -753,9 +791,10 @@ export const deleteClubMember = async (phone) => {
 export const fetchExpenses = async () => {
   if (isFirebaseConfigured) {
     try {
-      const snap = await getDocs(collection(db, 'expenses'));
+      const q = query(collection(db, 'expenses'), where('salonId', '==', getSalonId()));
+      const snap = await getDocs(q);
       if (!snap.empty) {
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(e => !e.deletedAt);
       }
     } catch (e) { console.error("Firebase err", e); }
   }
@@ -764,6 +803,7 @@ export const fetchExpenses = async () => {
 
 export const saveExpense = async (expense) => {
   expense.id = expense.id || Date.now().toString();
+  expense.salonId = getSalonId();
   if (isFirebaseConfigured) {
     try {
       await setDoc(doc(db, 'expenses', expense.id.toString()), expense);
@@ -778,7 +818,7 @@ export const saveExpense = async (expense) => {
 export const deleteExpense = async (id) => {
   if (isFirebaseConfigured) {
     try {
-      await deleteDoc(doc(db, 'expenses', id.toString()));
+      await updateDoc(doc(db, 'expenses', id.toString()), { deletedAt: new Date().toISOString() });
       return;
     } catch (e) { console.error("Firebase err", e); }
   }
