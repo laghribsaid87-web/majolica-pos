@@ -622,6 +622,29 @@ const POS = () => {
             </div>
           )}
 
+          {cart.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mb-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+              <div className="input-group m-0">
+                <input 
+                  type="text" 
+                  placeholder="Nom Cliente (Optionnel)" 
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="py-2 text-xs border-gray-200"
+                />
+              </div>
+              <div className="input-group m-0">
+                <input 
+                  type="tel" 
+                  placeholder="06 XX XX XX XX (Optionnel)" 
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  className="py-2 text-xs border-gray-200"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between items-end mb-6">
             <span className="text-gray-500 font-bold uppercase tracking-widest text-sm">Total à payer</span>
             <span className="text-4xl font-black text-secondary leading-none">{finalTotal.toFixed(2)} <span className="text-xl">DH</span></span>
@@ -662,29 +685,6 @@ const POS = () => {
                   (🎁 Cadeaux ajoutés pour {spentPointsInCart} points)
                 </div>
               )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="input-group">
-                <label className="text-sm">Nom Cliente (Optionnel)</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: Sara" 
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="py-2"
-                />
-              </div>
-              <div className="input-group">
-                <label className="text-sm">Téléphone (Optionnel)</label>
-                <input 
-                  type="tel" 
-                  placeholder="06 XX XX XX XX" 
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  className="py-2"
-                />
-              </div>
             </div>
 
             {currentMember && currentPoints > 0 && (
