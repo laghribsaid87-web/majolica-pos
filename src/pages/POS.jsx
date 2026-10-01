@@ -182,15 +182,13 @@ const POS = () => {
 
   const updateQty = (id, delta) => {
     if (delta < 0) {
-      requireAdminPin(() => {
-        setCart(cart.map(item => {
-          if (item.id === id) {
-            const newQty = item.qty + delta;
-            return newQty > 0 ? { ...item, qty: newQty } : null;
-          }
-          return item;
-        }).filter(Boolean));
-      });
+      setCart(cart.map(item => {
+        if (item.id === id) {
+          const newQty = item.qty + delta;
+          return newQty > 0 ? { ...item, qty: newQty } : null;
+        }
+        return item;
+      }).filter(Boolean));
     } else {
       const product = products.find(p => p.id === id);
       const existing = cart.find(item => item.id === id);
@@ -521,7 +519,6 @@ const POS = () => {
               className={`min-h-[56px] px-6 py-3 rounded-xl text-base whitespace-nowrap transition-all duration-200 font-bold border-2 active:scale-95 active:opacity-80 flex items-center gap-2 ${activeCategory === cat ? 'bg-accent border-accent text-white shadow-md shadow-accent/30 scale-105' : 'bg-white border-transparent hover:bg-gray-50 hover:border-accent/30 text-gray-700 shadow-sm'}`}
               onClick={() => setActiveCategory(cat)}
             >
-              <span className="text-xl">{getCategoryEmoji(cat)}</span>
               {cat}
             </button>
           ))}
@@ -535,8 +532,7 @@ const POS = () => {
               className="glass product-card flex flex-col items-center justify-center p-4 min-h-[120px] min-w-[48px] cursor-pointer hover:scale-[1.03] hover:-translate-y-1 hover:shadow-xl active:scale-95 active:bg-gray-100 transition-all duration-100 bg-gradient-to-br from-white/90 to-white/40 border border-white/60 group focus:outline-none" 
               onClick={() => addToCart(product)}
             >
-              <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300 drop-shadow-sm">{product.icon}</div>
-              <div className="font-bold text-sm sm:text-base text-center mb-2 text-secondary/90 leading-tight">{product.name}</div>
+              <div className="font-bold text-sm sm:text-base text-center mb-2 text-secondary/90 leading-tight mt-2">{product.name}</div>
               <div className="flex flex-col items-center">
                 <span className="text-accent font-black text-base sm:text-lg">{product.price.toFixed(2)} DH</span>
                 {product.clubPrice !== undefined && product.clubPrice !== product.price && (
