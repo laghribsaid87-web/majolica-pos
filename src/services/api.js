@@ -842,6 +842,38 @@ export const updateExpense = async (updatedExpense) => {
   }
 };
 
+export const fetchManualClients = async () => {
+  if (isFirebaseConfigured) {
+    try {
+      const q = query(collection(db, 'manual_clients'), where('salonId', '==', getSalonId()));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+  return JSON.parse(localStorage.getItem('majolica_manual_clients')) || [];
+};
+
+export const saveManualClient = async (clientData) => {
+  clientData.id = clientData.id || Date.now().toString();
+  clientData.salonId = getSalonId();
+  clientData.createdAt = new Date().toISOString();
+  
+  if (isFirebaseConfigured) {
+    try {
+      await setDoc(doc(db, 'manual_clients', clientData.id), clientData);
+    } catch (e) {
+      console.error(e);
+    }
+  } else {
+    const list = JSON.parse(localStorage.getItem('majolica_manual_clients')) || [];
+    list.push(clientData);
+    localStorage.setItem('majolica_manual_clients', JSON.stringify(list));
+  }
+};
+
 export const updateClientGlobal = async (oldName, oldPhone, newName, newPhone) => {
   const isTarget = (n, p) => (n === oldName && p === oldPhone) || (oldPhone !== 'Non renseigné' && p === oldPhone) || (oldPhone === 'Non renseigné' && n === oldName);
   

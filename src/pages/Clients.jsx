@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Phone, Star, Search, Award, Ban, Trash2, Megaphone, CheckSquare, Square, Edit2, X, Crown, CreditCard } from 'lucide-react';
-import { fetchHistory, fetchReservations, fetchDeletedClients, saveDeletedClients, fetchBlockedClients, saveBlockedClients, updateClientGlobal, fetchClubMembers, saveClubMember, deleteClubMember } from '../services/api';
+import { Users, Phone, Star, Search, Award, Ban, Trash2, Megaphone, CheckSquare, Square, Edit2, X, Crown, CreditCard, UserPlus } from 'lucide-react';
+import { fetchHistory, fetchReservations, fetchDeletedClients, saveDeletedClients, fetchBlockedClients, saveBlockedClients, updateClientGlobal, fetchClubMembers, saveClubMember, deleteClubMember, fetchManualClients, saveManualClient } from '../services/api';
 import VirtualCardModal from '../components/VirtualCardModal';
 
 const Clients = () => {
   const [history, setHistory] = useState([]);
   const [reservations, setReservations] = useState([]);
+  const [manualClients, setManualClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [blockedClients, setBlockedClients] = useState([]);
@@ -24,6 +25,10 @@ const Clients = () => {
   const [editingClient, setEditingClient] = useState(null);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
 
   useEffect(() => {
     fetchHistory().then(setHistory);
@@ -31,6 +36,7 @@ const Clients = () => {
     fetchBlockedClients().then(setBlockedClients);
     fetchDeletedClients().then(setDeletedClients);
     fetchClubMembers().then(setClubMembers);
+    fetchManualClients().then(setManualClients);
   }, []);
 
   const handleBlock = async (phone) => {
@@ -237,6 +243,7 @@ const Clients = () => {
 
     history.forEach(order => processRecord(order, true));
     reservations.forEach(res => processRecord(res, false));
+    manualClients.forEach(mc => processRecord({ name: mc.name, phone: mc.phone, timestamp: mc.createdAt }, false));
     
     // Ensure all club members are in the list even without history
     clubMembers.forEach(member => {
@@ -285,6 +292,18 @@ const Clients = () => {
     }
   };
 
+  const handleAddClient = async () => {
+    if (!newName.trim() || !newPhone.trim()) {
+      alert("Le nom et le téléphone sont obligatoires.");
+      return;
+    }
+    await saveManualClient({ name: newName.trim(), phone: newPhone.trim() });
+    setIsAddModalOpen(false);
+    setNewName('');
+    setNewPhone('');
+    fetchManualClients().then(setManualClients);
+  };
+
   return (
     <div className="pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -292,15 +311,23 @@ const Clients = () => {
           <Users className="text-accent" size={32} /> Fichier Client
         </h1>
         
-        <div className="glass px-4 py-2 flex items-center gap-2 w-full sm:w-auto">
-          <Search size={18} className="text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Rechercher un nom, téléphone..." 
-            className="bg-transparent border-none text-secondary outline-none w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="glass px-4 py-2 flex items-center gap-2 w-full sm:w-auto">
+            <Search size={18} className="text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Rechercher un nom, téléphone..." 
+              className="bg-transparent border-none text-secondary outline-none w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <button 
+            className="btn btn-primary flex items-center justify-center gap-2"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <UserPlus size={18} /> Nouveau Client
+          </button>
         </div>
       </div>
 
@@ -549,6 +576,50 @@ const Clients = () => {
           setIsCardModalOpen(false);
         }}
       />
+
+      {/* Add Client Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-secondary">Ajouter une Nouvelle Cliente</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full p-2">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="input-group">
+                <label className="text-sm font-bold text-gray-500 mb-1 block">Nom & Prénom</label>
+                <input 
+                  type="text" 
+                  className="w-full" 
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Ex: Fatima Zahra"
+                />
+              </div>
+              <div className="input-group">
+                <label className="text-sm font-bold text-gray-500 mb-1 block">Téléphone (Format: 2126...)</label>
+                <input 
+                  type="text" 
+                  className="w-full" 
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, ''))}
+                  placeholder="212600000000"
+                />
+              </div>
+              
+              <button 
+                className="btn btn-primary w-full h-12 text-lg mt-4"
+                onClick={handleAddClient}
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
