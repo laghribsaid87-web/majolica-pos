@@ -152,14 +152,19 @@ const Dashboard = () => {
   const employeeStats = useMemo(() => {
     const stats = {};
     filteredHistory.forEach(order => {
-      const empName = order.employeeName || 'Inconnu';
-      if (!stats[empName]) {
-        stats[empName] = { name: empName, totalSales: 0, transactions: 0, services: [] };
-      }
-      stats[empName].totalSales += order.total;
-      stats[empName].transactions += 1;
-      order.items.forEach(item => {
-        stats[empName].services.push(`${item.qty}x ${item.name}`);
+      const empNames = (order.employeeName || 'Inconnu').split(' & ').map(n => n.trim());
+      const numEmps = empNames.length;
+      const splitTotal = order.total / numEmps;
+      
+      empNames.forEach(empName => {
+        if (!stats[empName]) {
+          stats[empName] = { name: empName, totalSales: 0, transactions: 0, services: [] };
+        }
+        stats[empName].totalSales += splitTotal;
+        stats[empName].transactions += (1 / numEmps);
+        order.items.forEach(item => {
+          stats[empName].services.push(`${(item.qty / numEmps).toFixed(2).replace('.00', '')}x ${item.name}`);
+        });
       });
     });
     

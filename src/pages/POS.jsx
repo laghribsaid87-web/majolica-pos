@@ -10,7 +10,7 @@ const POS = () => {
   const [cart, setCart] = useState([]);
   const [activeCategory, setActiveCategory] = useState('');
   const [employees, setEmployees] = useState([]);
-  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [clubMembers, setClubMembers] = useState([]);
   
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -136,7 +136,7 @@ const POS = () => {
       setClientPhone(res.phone || '');
       
       const emp = employees.find(e => e.id.toString() === res.employeeId?.toString());
-      if (emp) setSelectedEmployee(emp.name);
+      if (emp) setSelectedEmployees([emp.name]);
 
       // Clear the state so it doesn't trigger again on refresh
       window.history.replaceState({}, document.title);
@@ -244,7 +244,7 @@ const POS = () => {
     const orderData = { 
       items: orderItems, 
       total: finalTotal, 
-      employeeName: selectedEmployee, 
+      employeeName: selectedEmployees.join(' & '), 
       clientName: clientName.trim(),
       clientPhone: clientPhone.trim(),
       isClubMember: isClientClub,
@@ -330,7 +330,7 @@ const POS = () => {
           shopPhone: localStorage.getItem('ticket_phone') || '06 00 00 00 00',
           qrLink: localStorage.getItem('ticket_qr_link') || '',
           paperSize: localStorage.getItem('printer_paper_size') || '80mm',
-          employee: selectedEmployee,
+          employee: selectedEmployees.join(' & '),
           clientName: clientName,
           cart: processedCart,
           total: finalTotal,
@@ -354,8 +354,8 @@ const POS = () => {
   };
 
   const openPaymentModal = () => {
-    if (!selectedEmployee) {
-      alert('Veuillez sélectionner l\'employée qui a réalisé la prestation !');
+    if (selectedEmployees.length === 0) {
+      alert('Veuillez sélectionner au moins une employée (vous pouvez en choisir plusieurs) !');
       return;
     }
     setIsPaymentModalOpen(true);
@@ -611,10 +611,23 @@ const POS = () => {
                   </label>
                 </div>
               </label>
-              <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
-                <option value="">-- Choisir une employée --</option>
-                {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
-              </select>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {employees.map(emp => (
+                  <button 
+                    key={emp.id}
+                    className={`px-3 py-1.5 rounded-full text-sm font-bold border transition-colors ${selectedEmployees.includes(emp.name) ? 'bg-accent text-white border-accent' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'}`}
+                    onClick={() => {
+                      if (selectedEmployees.includes(emp.name)) {
+                        setSelectedEmployees(selectedEmployees.filter(e => e !== emp.name));
+                      } else {
+                        setSelectedEmployees([...selectedEmployees, emp.name]);
+                      }
+                    }}
+                  >
+                    {emp.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -648,7 +661,7 @@ const POS = () => {
           
           <button 
             className="btn btn-primary w-full h-16 text-xl font-bold active:scale-95 transition-transform" 
-            disabled={cart.length === 0 || !selectedEmployee}
+            disabled={cart.length === 0 || selectedEmployees.length === 0}
             onClick={openPaymentModal}
           >
             Encaisser
