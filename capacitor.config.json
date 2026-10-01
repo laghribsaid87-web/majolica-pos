@@ -1,5 +1,9 @@
 {
   "appId": "com.majolica.pos",
   "appName": "majolica-pos",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "url": "https://majolica.web.app",
+    "cleartext": true
+  }
 }
