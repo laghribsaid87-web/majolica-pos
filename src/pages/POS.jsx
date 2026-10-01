@@ -219,7 +219,7 @@ const POS = () => {
   };
 
   const handlePinSubmit = () => {
-    if (pinInput === adminPin) {
+    if (pinInput.trim() === String(adminPin).trim()) {
       setIsPinPromptOpen(false);
       if (pendingAction) pendingAction();
     } else {
