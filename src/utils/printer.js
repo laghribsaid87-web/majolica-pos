@@ -11,15 +11,28 @@ const OPEN_DRAWER = ESC + "p" + String.fromCharCode(0) + String.fromCharCode(25)
 // Helper to center text
 const alignCenter = ESC + "a" + String.fromCharCode(1);
 const alignLeft = ESC + "a" + String.fromCharCode(0);
+const alignRight = ESC + "a" + String.fromCharCode(2);
 
-// Helper to make text bold
-const boldOn = ESC + "E" + String.fromCharCode(1);
-const boldOff = ESC + "E" + String.fromCharCode(0);
+// Standard formatting via ESC !
+const textNormal = ESC + "!" + String.fromCharCode(0);
+const textBold = ESC + "!" + String.fromCharCode(8);
+const textTall = ESC + "!" + String.fromCharCode(16);
+const textTallBold = ESC + "!" + String.fromCharCode(24);
+const textDouble = ESC + "!" + String.fromCharCode(48);
+const textDoubleBold = ESC + "!" + String.fromCharCode(56);
 
-// Helper for double height/width
-const sizeDouble = GS + "!" + String.fromCharCode(0x11);
-const sizeTall = GS + "!" + String.fromCharCode(0x01);
-const sizeNormal = GS + "!" + String.fromCharCode(0x00);
+// Helper to convert string to Latin1 Base64
+const payloadToLatin1Base64 = (str) => {
+  let uint8Array = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    uint8Array[i] = str.charCodeAt(i) & 0xFF;
+  }
+  let binaryString = '';
+  for (let i = 0; i < uint8Array.length; i++) {
+    binaryString += String.fromCharCode(uint8Array[i]);
+  }
+  return btoa(binaryString);
+};
 
 export const printTicketTCP = async (printerIp, ticketInfo) => {
   if (!printerIp) {
@@ -59,47 +72,43 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
   
   // Header
   payload += "\n\n";
-  payload += alignCenter + boldOn + sizeDouble + (shopName || "MAJOLICA") + "\n\n" + sizeNormal + boldOff;
-  if (shopAddress) payload += alignCenter + sizeTall + shopAddress + "\n" + sizeNormal;
-  if (shopPhone) payload += alignCenter + sizeTall + "Tel: " + shopPhone + "\n" + sizeNormal;
+  payload += alignCenter + textDoubleBold + (shopName || "MAJOLICA") + "\n" + textNormal;
+  if (shopAddress) payload += alignCenter + textNormal + shopAddress + "\n";
+  if (shopPhone) payload += alignCenter + textNormal + "Tel: " + shopPhone + "\n";
   payload += "\n";
   
   // Info
-  payload += alignLeft + sizeTall + `Date: ${dateStr}  Heure: ${timeStr}\n`;
+  payload += alignLeft + textNormal + `Date: ${dateStr}  Heure: ${timeStr}\n`;
   if (employee) payload += `Servi par: ${employee}\n`;
   if (clientName) payload += `Client: ${clientName}\n`;
-  payload += sizeNormal;
   
   payload += divider;
   
   // Items
-  payload += sizeTall;
+  payload += textNormal;
   cart.forEach(item => {
     const qtyPriceStr = `${item.qty}x ${item.name}`;
     const totalItemStr = item.totalPrice;
     let spaceCount = maxWidth - qtyPriceStr.length - totalItemStr.length;
     if (spaceCount < 1) spaceCount = 1; // Fallback spacing
-    payload += qtyPriceStr + " ".repeat(spaceCount) + totalItemStr + "\n\n";
+    payload += qtyPriceStr + " ".repeat(spaceCount) + totalItemStr + "\n";
   });
-  payload += sizeNormal;
   
   payload += divider;
   
   // Totals
-  payload += boldOn + sizeDouble + `TOTAL: ${total.toFixed(2)} MAD\n\n` + sizeNormal + boldOff;
-  payload += sizeTall;
+  payload += textDoubleBold + `TOTAL: ${total.toFixed(2)} MAD\n` + textNormal;
   payload += `Especes: ${amountReceived} MAD\n`;
   payload += `Rendu: ${change.toFixed(2)} MAD\n`;
-  payload += sizeNormal;
   
   payload += divider;
   
   if (loyaltyPointsBalance !== undefined && loyaltyPointsBalance !== null) {
-    payload += alignCenter + boldOn + `Solde Fidelite: ${loyaltyPointsBalance} Points\n\n` + boldOff;
+    payload += alignCenter + textBold + `Solde Fidelite: ${loyaltyPointsBalance} Points\n\n` + textNormal;
     payload += divider;
   }
 
-  payload += alignCenter + boldOn + sizeTall + "Merci pour votre visite!\n\n" + sizeNormal + boldOff;
+  payload += alignCenter + textBold + "Merci pour votre visite!\n\n" + textNormal;
   
   if (qrLink) {
     payload += getQrCodeCommands(qrLink);
@@ -187,30 +196,29 @@ export const printZReportTCP = async (printerIp, reportInfo) => {
   
   // Header
   payload += "\n\n";
-  payload += alignCenter + boldOn + sizeDouble + (shopName || "MAJOLICA") + "\n\n" + sizeNormal + boldOff;
-  payload += sizeDouble + "BILAN DE CAISSE\n" + sizeNormal;
+  payload += alignCenter + textDoubleBold + (shopName || "MAJOLICA") + "\n" + textNormal;
+  payload += textDoubleBold + "BILAN DE CAISSE\n" + textNormal;
   payload += `(Rapport X)\n\n`;
   
   // Info
-  payload += alignLeft + sizeTall + `Date: ${dateStr}\nHeure: ${timeStr}\n` + sizeNormal;
+  payload += alignLeft + textNormal + `Date: ${dateStr}\nHeure: ${timeStr}\n`;
   payload += divider;
   
   // Stats
-  payload += sizeTall;
+  payload += textNormal;
   payload += `Nombre de tickets : ${ordersCount}\n\n`;
   payload += `Total Ventes    : ${totalSales.toFixed(2)} MAD\n`;
   payload += `  Especes       : ${cashSales.toFixed(2)} MAD\n`;
   if (cardSales) payload += `  Carte/Virement: ${cardSales.toFixed(2)} MAD\n`;
-  payload += `Dépenses/Sorties: ${totalExpenses.toFixed(2)} MAD\n\n`;
-  payload += sizeNormal;
+  payload += `Depenses/Sorties: ${totalExpenses.toFixed(2)} MAD\n\n`;
   
   payload += divider;
   
   // Caisse Attendue
-  payload += boldOn + sizeDouble + `CAISSE ATTENDUE:\n${(cashSales - totalExpenses).toFixed(2)} MAD\n\n` + sizeNormal + boldOff;
+  payload += textDoubleBold + `CAISSE ATTENDUE:\n${(cashSales - totalExpenses).toFixed(2)} MAD\n\n` + textNormal;
   
   payload += divider;
-  payload += alignCenter + "Fin du Bilan\n\n\n\n\n";
+  payload += alignCenter + textBold + "Fin du Bilan\n\n\n\n\n" + textNormal;
 
   // Open drawer and cut paper
   payload += OPEN_DRAWER;
