@@ -461,6 +461,21 @@ export const hardDeleteHistory = async (id) => {
   }
 };
 
+export const updateHistoryEmployee = async (id, newEmployeeName) => {
+  if (isFirebaseConfigured) {
+    try {
+      await updateDoc(doc(db, 'history', id.toString()), { employeeName: newEmployeeName });
+    } catch (e) { console.error("Firebase err", e); }
+  } else {
+    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+    const idx = history.findIndex(h => h.id.toString() === id.toString());
+    if (idx !== -1) {
+      history[idx].employeeName = newEmployeeName;
+      localStorage.setItem('majolica_history', JSON.stringify(history));
+    }
+  }
+};
+
 export const saveOrder = async (orderData) => {
   orderData.id = orderData.id || Date.now().toString();
   orderData.timestamp = orderData.timestamp || new Date().toISOString();

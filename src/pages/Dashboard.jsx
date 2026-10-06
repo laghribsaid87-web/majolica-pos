@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, Upload, DollarSign, Award, Filter, Printer, Wallet, Activity, X, FileText, Minus, Plus, Trash2 } from 'lucide-react';
-import { fetchHistory, fetchExpenses, fetchEmployees, fetchSalonConfig, saveOrder, saveExpense, deleteExpense, softDeleteHistory, restoreHistory, fetchDeletedHistory, hardDeleteHistory } from '../services/api';
+import { fetchHistory, fetchExpenses, fetchEmployees, fetchSalonConfig, saveOrder, saveExpense, deleteExpense, softDeleteHistory, restoreHistory, fetchDeletedHistory, hardDeleteHistory, updateHistoryEmployee } from '../services/api';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { format, isToday, isYesterday, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
@@ -842,9 +842,33 @@ const Dashboard = () => {
                               ) : '-'}
                             </td>
                             <td className="p-3">
-                              <span className="bg-accent/10 text-accent px-2 py-1 rounded text-xs font-medium">
-                                {item.employeeName || 'Inconnu'}
-                              </span>
+                              <select
+                                className="bg-accent/10 text-accent px-2 py-1 rounded text-xs font-medium border border-transparent hover:border-accent cursor-pointer outline-none"
+                                value={item.employeeName || ''}
+                                onChange={async (e) => {
+                                  const newName = e.target.value;
+                                  if (!newName) return;
+                                  
+                                  // Optimistic UI update
+                                  setDetailModal(prev => ({
+                                    ...prev,
+                                    data: prev.data.map((d, i) => i === idx ? { ...d, employeeName: newName } : d)
+                                  }));
+                                  
+                                  setHistory(prev => prev.map(h => h.id === item.id ? { ...h, employeeName: newName } : h));
+                                  
+                                  // Update DB
+                                  await updateHistoryEmployee(item.id.toString(), newName);
+                                }}
+                              >
+                                <option value="" disabled>Sélectionner</option>
+                                {employees.map(emp => (
+                                  <option key={emp.name} value={emp.name}>{emp.name}</option>
+                                ))}
+                                {!employees.find(e => e.name === item.employeeName) && item.employeeName && (
+                                  <option value={item.employeeName}>{item.employeeName}</option>
+                                )}
+                              </select>
                             </td>
                             <td className="p-3 text-sm text-gray-600">
                               {item.items?.map((svc, i) => (
