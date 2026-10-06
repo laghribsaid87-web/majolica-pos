@@ -233,8 +233,12 @@ const Employees = () => {
   const getEmpCA = (empName) => {
     const currentMonth = new Date().toISOString().slice(0, 7);
     return history
-      .filter(order => order.employeeName === empName && (order.timestamp?.startsWith(currentMonth) || order.date?.startsWith(currentMonth)))
-      .reduce((sum, order) => sum + order.total, 0);
+      .filter(order => {
+        if (!order || order.employeeName !== empName) return false;
+        const orderDate = order.timestamp ? String(order.timestamp).substring(0, 7) : (order.date ? String(order.date).substring(0, 7) : '');
+        return orderDate === currentMonth;
+      })
+      .reduce((sum, order) => sum + Number(order.total || 0), 0);
   };
 
   return (
