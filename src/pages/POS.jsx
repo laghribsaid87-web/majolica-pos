@@ -83,6 +83,15 @@ const POS = () => {
           pointsPerDh: parseFloat(config.loyaltyPointsPerDh) || 1,
           rewards: config.loyaltyRewards || []
         });
+        // Auto-restore printer config from Firebase to localStorage if it was cleared
+        if (config.printerIp && !localStorage.getItem('printer_ip')) {
+          localStorage.setItem('printer_ip', config.printerIp);
+          localStorage.setItem('ticket_shop_name', config.ticketShopName || 'MAJOLICA POS');
+          localStorage.setItem('ticket_address', config.ticketAddress || 'Tanger, Maroc');
+          localStorage.setItem('ticket_phone', config.ticketPhone || '06 00 00 00 00');
+          localStorage.setItem('ticket_qr_link', config.ticketQrLink || '');
+          localStorage.setItem('printer_paper_size', config.printerPaperSize || '80mm');
+        }
       }
     });
 

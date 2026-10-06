@@ -42,6 +42,14 @@ const Dashboard = () => {
     fetchSalonConfig().then(c => {
       setMonthlyRent(c?.monthlyRent || 0);
       setMonthlyElec(c?.monthlyElec || 0);
+      if (c && c.printerIp && !localStorage.getItem('printer_ip')) {
+        localStorage.setItem('printer_ip', c.printerIp);
+        localStorage.setItem('ticket_shop_name', c.ticketShopName || 'MAJOLICA POS');
+        localStorage.setItem('ticket_address', c.ticketAddress || 'Tanger, Maroc');
+        localStorage.setItem('ticket_phone', c.ticketPhone || '06 00 00 00 00');
+        localStorage.setItem('ticket_qr_link', c.ticketQrLink || '');
+        localStorage.setItem('printer_paper_size', c.printerPaperSize || '80mm');
+      }
     });
   }, []);
 
