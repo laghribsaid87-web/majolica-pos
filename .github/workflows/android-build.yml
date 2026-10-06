@@ -41,20 +41,27 @@ jobs:
       working-directory: ./android
       run: |
         chmod +x ./gradlew
-        ./gradlew assembleDebug
+        ./gradlew assembleRelease
+
+    - name: Sign Release APK
+      working-directory: ./android
+      run: |
+        keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass "password123" -keypass "password123" -dname "CN=Majolica, O=Majolica, C=MA"
+        BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
+        $BUILD_TOOLS_DIR/apksigner sign --ks release.keystore --ks-key-alias release --ks-pass pass:"password123" --key-pass pass:"password123" --out app/build/outputs/apk/release/app-release-signed.apk app/build/outputs/apk/release/app-release-unsigned.apk
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Majolica-POS-Debug-APK
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        name: Majolica-POS-Release-APK
+        path: android/app/build/outputs/apk/release/app-release-signed.apk
 
     - name: Create or Update Public Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: latest
         name: Dernière Version (Latest)
-        files: android/app/build/outputs/apk/debug/app-debug.apk
+        files: android/app/build/outputs/apk/release/app-release-signed.apk
         make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
