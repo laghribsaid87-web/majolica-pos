@@ -192,27 +192,28 @@ const Employees = () => {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     
     const monthAdvances = (emp.advances || [])
-      .filter(a => a.date.startsWith(currentMonth))
-      .reduce((sum, a) => sum + a.amount, 0);
+      .filter(a => a && a.date && String(a.date).startsWith(currentMonth))
+      .reduce((sum, a) => sum + Number(a.amount || 0), 0);
       
     const monthAbsences = (emp.absences || [])
-      .filter(a => a.date.startsWith(currentMonth))
-      .reduce((sum, a) => sum + a.deduction, 0);
+      .filter(a => a && a.date && String(a.date).startsWith(currentMonth))
+      .reduce((sum, a) => sum + Number(a.deduction || 0), 0);
       
-    const monthAdvancesDetails = (emp.advances || []).filter(a => a.date.startsWith(currentMonth));
-    const monthAbsencesDetails = (emp.absences || []).filter(a => a.date.startsWith(currentMonth));
+    const monthAdvancesDetails = (emp.advances || []).filter(a => a && a.date && String(a.date).startsWith(currentMonth));
+    const monthAbsencesDetails = (emp.absences || []).filter(a => a && a.date && String(a.date).startsWith(currentMonth));
       
-    const reste = (emp.baseSalary || 0) - monthAdvances - monthAbsences;
+    const baseSalary = Number(emp.baseSalary || 0);
+    const reste = baseSalary - monthAdvances - monthAbsences;
     
     // Calculate CA and Profit
     const monthOrders = history.filter(order => {
-      const orderDate = order.timestamp ? order.timestamp.substring(0, 7) : order.date?.substring(0, 7);
+      if (!order) return false;
+      const orderDate = order.timestamp ? String(order.timestamp).substring(0, 7) : (order.date ? String(order.date).substring(0, 7) : '');
       return orderDate === currentMonth && order.employeeName === emp.name;
     });
     
-    const ca = monthOrders.reduce((sum, order) => sum + order.total, 0);
-    const totalSalary = (emp.baseSalary || 0);
-    const cost = totalSalary - monthAbsences;
+    const ca = monthOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const cost = baseSalary - monthAbsences;
     const profit = ca - cost;
     
     return { 
@@ -220,9 +221,9 @@ const Employees = () => {
       absences: monthAbsences, 
       advancesDetails: monthAdvancesDetails,
       absencesDetails: monthAbsencesDetails,
-      reste: totalSalary - monthAdvances - monthAbsences, 
-      ca, 
-      profit 
+      reste: reste, 
+      ca: ca, 
+      profit: profit 
     };
   };
 
