@@ -221,7 +221,6 @@ const Employees = () => {
       advancesDetails: monthAdvancesDetails,
       absencesDetails: monthAbsencesDetails,
       reste: totalSalary - monthAdvances - monthAbsences, 
-      commission,
       ca, 
       profit 
     };
