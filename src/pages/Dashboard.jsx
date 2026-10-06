@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, Upload, DollarSign, Award, Filter, Printer, Wallet, Activity, X, FileText, Minus, Plus, Trash2 } from 'lucide-react';
-import { fetchHistory, fetchExpenses, fetchEmployees, fetchSalonConfig, saveOrder, saveExpense, deleteExpense } from '../services/api';
+import { fetchHistory, fetchExpenses, fetchEmployees, fetchSalonConfig, saveOrder, saveExpense, deleteExpense, softDeleteHistory, restoreHistory, fetchDeletedHistory, hardDeleteHistory } from '../services/api';
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { format, isToday, isYesterday, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
@@ -21,6 +21,14 @@ const Dashboard = () => {
 
   // Import Historique Modal State
   const [showImport, setShowImport] = useState(false);
+  const [showCorbeille, setShowCorbeille] = useState(false);
+  const [deletedHistory, setDeletedHistory] = useState([]);
+
+  const loadCorbeille = async () => {
+    const dh = await fetchDeletedHistory();
+    setDeletedHistory(dh || []);
+    setShowCorbeille(true);
+  };
   const [importRows, setImportRows] = useState([
     { date: format(new Date(), 'yyyy-MM-dd'), ca: '', sortieCaisse: '', descCaisse: '', sortiePoche: '', descPoche: '' }
   ]);
@@ -330,6 +338,13 @@ const Dashboard = () => {
             title="Saisir les données historiques manuelles"
           >
             <Upload size={18} /> Saisie Historique
+          </button>
+          <button 
+            onClick={loadCorbeille}
+            className="btn flex items-center gap-2 bg-red-100 text-red-600 hover:bg-red-200 border border-red-200"
+            title="Voir la Corbeille (Ventes supprimées)"
+          >
+            <Trash2 size={18} /> Corbeille
           </button>
         </div>
       </div>
@@ -844,7 +859,9 @@ const Dashboard = () => {
                                 onClick={async () => {
                                   if (!window.confirm(`Supprimer cette vente de ${item.total?.toFixed(2)} DH ?`)) return;
                                   if (isFirebaseConfigured) {
-                                    await deleteDoc(doc(db, 'history', item.id.toString()));
+                                    await softDeleteHistory(item.id.toString());
+                                  } else {
+                                    await softDeleteHistory(item.id.toString());
                                   }
                                   setDetailModal(prev => ({ ...prev, data: prev.data.filter((_, i) => i !== idx) }));
                                   setHistory(prev => prev.filter(h => h.id !== item.id));
@@ -1033,6 +1050,89 @@ const Dashboard = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Corbeille Modal */}
+      {showCorbeille && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in-up">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-red-50">
+              <h2 className="text-xl font-black text-red-600 flex items-center gap-2"><Trash2 size={24} /> Corbeille (Ventes supprimées)</h2>
+              <button 
+                onClick={() => setShowCorbeille(false)}
+                className="p-2 hover:bg-red-200 rounded-full transition-colors"
+              >
+                <X size={20} className="text-red-600" />
+              </button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto custom-scrollbar flex-1 bg-gray-50">
+              {deletedHistory.length === 0 ? (
+                <div className="text-center text-gray-500 py-10">La corbeille est vide.</div>
+              ) : (
+                <table className="w-full text-left border-collapse bg-white shadow-sm rounded-xl overflow-hidden">
+                  <thead className="bg-gray-100">
+                    <tr className="border-b border-gray-200">
+                      <th className="p-3 text-gray-500 font-medium">Date Suppr.</th>
+                      <th className="p-3 text-gray-500 font-medium">Date Vente</th>
+                      <th className="p-3 text-gray-500 font-medium">Employée</th>
+                      <th className="p-3 text-gray-500 font-medium">Prestations</th>
+                      <th className="p-3 text-gray-500 font-medium text-right">Total</th>
+                      <th className="p-3 text-gray-500 font-medium text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deletedHistory.map((item, idx) => (
+                      <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="p-3 text-sm text-red-500 font-medium">
+                          {item.deletedAt ? format(parseISO(item.deletedAt), 'dd/MM/yyyy HH:mm') : 'N/A'}
+                        </td>
+                        <td className="p-3 text-sm text-gray-500">
+                          {item.timestamp ? format(parseISO(item.timestamp), 'dd/MM/yyyy HH:mm') : 'N/A'}
+                        </td>
+                        <td className="p-3 text-sm font-semibold">
+                          <span className="bg-red-100 text-red-700 px-2 py-1 rounded-md text-xs">{item.employeeName}</span>
+                        </td>
+                        <td className="p-3 text-sm">
+                          {item.items?.map((svc, i) => (
+                            <div key={i}><span className="font-bold">{svc.qty}x</span> {svc.name}</div>
+                          ))}
+                        </td>
+                        <td className="p-3 text-sm font-bold text-red-600 text-right">{item.total?.toFixed(2)} DH</td>
+                        <td className="p-3 text-center flex justify-center gap-2">
+                          <button
+                            className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-colors font-bold text-xs flex items-center gap-1 border border-green-200"
+                            title="Restaurer cette vente"
+                            onClick={async () => {
+                              if (!window.confirm("Voulez-vous restaurer cette vente dans le Bilan ?")) return;
+                              await restoreHistory(item.id.toString());
+                              setDeletedHistory(prev => prev.filter(h => h.id !== item.id));
+                              const h = await fetchHistory();
+                              setHistory(h || []);
+                            }}
+                          >
+                            <Activity size={14} /> Restaurer
+                          </button>
+                          <button
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors font-bold text-xs flex items-center gap-1 border border-gray-300"
+                            title="Supprimer définitivement (Irréversible)"
+                            onClick={async () => {
+                              if (!window.confirm("⚠️ ATTENTION : Supprimer définitivement cette vente ? C'est irréversible !")) return;
+                              await hardDeleteHistory(item.id.toString());
+                              setDeletedHistory(prev => prev.filter(h => h.id !== item.id));
+                            }}
+                          >
+                            <Trash2 size={14} /> Effacer
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       )}

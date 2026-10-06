@@ -381,7 +381,7 @@ export const fetchHistory = async () => {
       const q = query(collection(db, 'history'), where('salonId', '==', getSalonId()));
       const snap = await getDocs(q);
       if (!snap.empty) {
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => !d.deletedAt);
       } else {
         const local = localStorage.getItem('majolica_history');
         if (local) {
@@ -393,14 +393,72 @@ export const fetchHistory = async () => {
               item.salonId = getSalonId();
               await setDoc(doc(db, 'history', item.id.toString()), item);
             }
-            return parsed;
+            return parsed.filter(d => !d.deletedAt);
           }
         }
       }
     } catch (e) { console.error("Firebase err", e); }
   }
-  const history = localStorage.getItem('majolica_history');
-  return history ? JSON.parse(history) : [];
+  const local = localStorage.getItem('majolica_history');
+  if (local) return JSON.parse(local).filter(d => !d.deletedAt);
+  return [];
+};
+
+export const fetchDeletedHistory = async () => {
+  if (isFirebaseConfigured) {
+    try {
+      const q = query(collection(db, 'history'), where('salonId', '==', getSalonId()));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.deletedAt);
+      }
+    } catch (e) { console.error("Firebase err", e); }
+  }
+  const local = localStorage.getItem('majolica_history');
+  if (local) return JSON.parse(local).filter(d => d.deletedAt);
+  return [];
+};
+
+export const softDeleteHistory = async (id) => {
+  if (isFirebaseConfigured) {
+    try {
+      await updateDoc(doc(db, 'history', id.toString()), { deletedAt: new Date().toISOString() });
+    } catch (e) { console.error("Firebase err", e); }
+  } else {
+    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+    const idx = history.findIndex(h => h.id.toString() === id.toString());
+    if (idx !== -1) {
+      history[idx].deletedAt = new Date().toISOString();
+      localStorage.setItem('majolica_history', JSON.stringify(history));
+    }
+  }
+};
+
+export const restoreHistory = async (id) => {
+  if (isFirebaseConfigured) {
+    try {
+      await updateDoc(doc(db, 'history', id.toString()), { deletedAt: null });
+    } catch (e) { console.error("Firebase err", e); }
+  } else {
+    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+    const idx = history.findIndex(h => h.id.toString() === id.toString());
+    if (idx !== -1) {
+      delete history[idx].deletedAt;
+      localStorage.setItem('majolica_history', JSON.stringify(history));
+    }
+  }
+};
+
+export const hardDeleteHistory = async (id) => {
+  if (isFirebaseConfigured) {
+    try {
+      await deleteDoc(doc(db, 'history', id.toString()));
+    } catch (e) { console.error("Firebase err", e); }
+  } else {
+    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+    const newHistory = history.filter(h => h.id.toString() !== id.toString());
+    localStorage.setItem('majolica_history', JSON.stringify(newHistory));
+  }
 };
 
 export const saveOrder = async (orderData) => {
