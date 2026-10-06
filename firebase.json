@@ -15,7 +15,7 @@
       },
       {
         "source": "/apk",
-        "destination": "https://github.com/laghribsaid87-web/majolica-pos/releases/download/latest/app-debug.apk",
+        "destination": "https://github.com/laghribsaid87-web/majolica-pos/releases/download/latest/app-release-signed.apk",
         "type": 302
       }
     ],
