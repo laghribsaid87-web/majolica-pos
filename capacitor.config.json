@@ -4,6 +4,9 @@
   "webDir": "dist",
   "server": {
     "url": "https://majolica.web.app",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "majolica.web.app"
+    ]
   }
 }
