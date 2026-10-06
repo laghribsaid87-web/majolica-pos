@@ -235,122 +235,123 @@ const POS = () => {
   const finalTotal = total;
 
   const handleCheckout = async () => {
-    const orderItems = cart.map(item => ({
-      ...item,
-      price: getItemPrice(item), // Save the effective price based on Club status
-      originalPrice: item.price
-    }));
+    try {
+      const orderItems = cart.map(item => ({
+        ...item,
+        price: getItemPrice(item),
+        originalPrice: item.price
+      }));
 
-    const orderData = { 
-      items: orderItems, 
-      total: finalTotal, 
-      employeeName: selectedEmployees.join(' & '), 
-      clientName: clientName.trim(),
-      clientPhone: clientPhone.trim(),
-      isClubMember: isClientClub,
-      date: new Date() 
-    };
-    await saveOrder(orderData);
-    
-    // Manage Loyalty Points
-    if (loyaltyConfig.enabled && isClientClub && clientPhone) {
-      const member = clubMembers.find(m => m.phone === clientPhone);
-      if (member) {
-        const pointsEarned = Math.floor(finalTotal * loyaltyConfig.pointsPerDh);
-        const pointsSpent = cart.reduce((sum, item) => sum + (item.isReward ? (item.pointsCost || 0) * item.qty : 0), 0);
-        member.points = (member.points || 0) + pointsEarned - pointsSpent;
-        await saveClubMember(member);
-      }
-    }
-
-    // Decrement stock for products
-    const promises = cart.map(item => {
-      if (item.type === 'Produit' && item.stock !== undefined && item.stock !== null) {
-        const productFromDb = products.find(p => p.id === item.id);
-        if (productFromDb) {
-          const updatedProduct = { ...productFromDb, stock: Math.max(0, productFromDb.stock - item.qty) };
-          return saveProduct(updatedProduct);
-        }
-      }
-      return Promise.resolve();
-    });
-    await Promise.all(promises);
-
-    // Set data for the receipt
-    setPrintData({
-      ...orderData,
-      amountReceived: parseFloat(amountReceived),
-      changeToReturn: parseFloat(amountReceived) - finalTotal
-    });
-
-    // Send WhatsApp Thank You Message
-    if (clientPhone.trim()) {
-      let pointsMessage = "";
-      if (loyaltyConfig.enabled && isClientClub) {
+      const orderData = { 
+        items: orderItems, 
+        total: finalTotal, 
+        employeeName: selectedEmployees.join(' & '), 
+        clientName: clientName ? clientName.trim() : '',
+        clientPhone: clientPhone ? clientPhone.trim() : '',
+        isClubMember: isClientClub,
+        date: new Date() 
+      };
+      await saveOrder(orderData);
+      
+      // Manage Loyalty Points
+      if (loyaltyConfig && loyaltyConfig.enabled && isClientClub && clientPhone) {
         const member = clubMembers.find(m => m.phone === clientPhone);
         if (member) {
-          // The member object was just updated in the DB and memory, 
-          // but we can compute the new balance if we want to be safe, 
-          // or just use member.points which was just updated above at line 261.
-          pointsMessage = `\n🎁 Solde Fidélité : ${member.points || 0} Points\n`;
+          const pointsEarned = Math.floor(finalTotal * (loyaltyConfig.pointsPerDh || 0));
+          const pointsSpent = cart.reduce((sum, item) => sum + (item.isReward ? (item.pointsCost || 0) * item.qty : 0), 0);
+          member.points = (member.points || 0) + pointsEarned - pointsSpent;
+          await saveClubMember(member);
         }
       }
 
-      fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: clientPhone.trim(),
-          message: `Merci ${clientName.trim() || 'chère cliente'} pour votre visite chez Majolica ! ❤️\n\nNous espérons que votre prestation vous a plu.\n${pointsMessage}\nÀ la prochaine ! 💅✨`
-        })
-      }).catch(err => console.log("WhatsApp API not reachable"));
-    }
-    
-    setCart([]);
-    setSelectedEmployee('');
-    setAmountReceived('');
-    setClientName('');
-    setClientPhone('');
-    setIsClientClub(false);
-    setIsPaymentModalOpen(false);
-    
-    // Trigger print dialog after React renders the receipt component
-    setTimeout(async () => {
-      const savedIp = localStorage.getItem('printer_ip');
-      if (savedIp) {
-        const processedCart = cart.map(item => ({
-          name: item.name,
-          qty: item.qty,
-          totalPrice: (getItemPrice(item) * item.qty).toFixed(2)
-        }));
+      // Decrement stock for products
+      const promises = cart.map(item => {
+        if (item.type === 'Produit' && item.stock !== undefined && item.stock !== null) {
+          const productFromDb = products.find(p => p.id === item.id);
+          if (productFromDb) {
+            const updatedProduct = { ...productFromDb, stock: Math.max(0, productFromDb.stock - item.qty) };
+            return saveProduct(updatedProduct);
+          }
+        }
+        return Promise.resolve();
+      });
+      await Promise.all(promises);
 
-        const ticketInfo = {
-          shopName: localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS',
-          shopAddress: localStorage.getItem('ticket_address') || 'Tanger, Maroc',
-          shopPhone: localStorage.getItem('ticket_phone') || '06 00 00 00 00',
-          qrLink: localStorage.getItem('ticket_qr_link') || '',
-          paperSize: localStorage.getItem('printer_paper_size') || '80mm',
-          employee: selectedEmployees.join(' & '),
-          clientName: clientName,
-          cart: processedCart,
-          total: finalTotal,
-          amountReceived: amountReceived,
-          change: parseFloat(amountReceived) - finalTotal,
-          date: new Date(),
-          loyaltyPointsBalance: (loyaltyConfig.enabled && isClientClub) ? clubMembers.find(m => m.phone === clientPhone)?.points : undefined
-        };
-        
-        try {
-          await printTicketTCP(savedIp, ticketInfo);
-        } catch (e) {
-          alert(e.message);
+      // Set data for the receipt
+      setPrintData({
+        ...orderData,
+        amountReceived: parseFloat(amountReceived),
+        changeToReturn: parseFloat(amountReceived) - finalTotal
+      });
+
+      // Send WhatsApp Thank You Message
+      if (clientPhone && clientPhone.trim()) {
+        let pointsMessage = "";
+        if (loyaltyConfig && loyaltyConfig.enabled && isClientClub) {
+          const member = clubMembers.find(m => m.phone === clientPhone);
+          if (member) {
+            pointsMessage = `\n🎁 Solde Fidélité : ${member.points || 0} Points\n`;
+          }
+        }
+
+        fetch('https://majolica.13.60.221.74.nip.io/api/send-whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: clientPhone.trim(),
+            message: `Merci ${clientName ? clientName.trim() : 'chère cliente'} pour votre visite chez Majolica ! ❤️\n\nNous espérons que votre prestation vous a plu.\n${pointsMessage}\nÀ la prochaine ! 💅✨`
+          })
+        }).catch(err => console.log("WhatsApp API not reachable"));
+      }
+      
+      setCart([]);
+      setSelectedEmployees([]);
+      setAmountReceived('');
+      setClientName('');
+      setClientPhone('');
+      setIsClientClub(false);
+      setIsPaymentModalOpen(false);
+      
+      // Trigger print dialog after React renders the receipt component
+      setTimeout(async () => {
+        const savedIp = localStorage.getItem('printer_ip');
+        if (savedIp) {
+          const processedCart = cart.map(item => ({
+            name: item.name,
+            qty: item.qty,
+            totalPrice: (getItemPrice(item) * item.qty).toFixed(2)
+          }));
+
+          const ticketInfo = {
+            shopName: localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS',
+            shopAddress: localStorage.getItem('ticket_address') || 'Tanger, Maroc',
+            shopPhone: localStorage.getItem('ticket_phone') || '06 00 00 00 00',
+            qrLink: localStorage.getItem('ticket_qr_link') || '',
+            paperSize: localStorage.getItem('printer_paper_size') || '80mm',
+            employee: selectedEmployees.join(' & '),
+            clientName: clientName,
+            cart: processedCart,
+            total: finalTotal,
+            amountReceived: amountReceived,
+            change: parseFloat(amountReceived) - finalTotal,
+            date: new Date(),
+            loyaltyPointsBalance: (loyaltyConfig && loyaltyConfig.enabled && isClientClub) ? clubMembers.find(m => m.phone === clientPhone)?.points : undefined
+          };
+          
+          try {
+            await printTicketTCP(savedIp, ticketInfo);
+          } catch (e) {
+            alert(e.message);
+            window.print();
+          }
+        } else {
           window.print();
         }
-      } else {
-        window.print();
-      }
-      setPrintData(null); 
-    }, 500);
+        setPrintData(null); 
+      }, 500);
+    } catch (err) {
+      alert("Erreur Checkout: " + err.message);
+    }
   };
 
   const openPaymentModal = () => {
