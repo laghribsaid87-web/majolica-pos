@@ -129,6 +129,19 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
     }
   }
 
+  // Helper to convert string to Latin1 Base64
+  const payloadToLatin1Base64 = (str) => {
+    let uint8Array = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      uint8Array[i] = str.charCodeAt(i) & 0xFF;
+    }
+    let binaryString = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binaryString += String.fromCharCode(uint8Array[i]);
+    }
+    return btoa(binaryString);
+  };
+
   // Si on est sur Tablette (Android/iOS), on utilise le vrai plugin TCP
   try {
     const { client } = await TcpSocket.connect({
@@ -136,10 +149,11 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
       port: 9100
     });
     
-    // Send the raw ESC/POS payload
+    // Send the raw ESC/POS payload as base64 to avoid UTF-8 corruption
     await TcpSocket.send({ 
       client: client,
-      data: payload 
+      data: payloadToLatin1Base64(payload),
+      encoding: 'base64'
     });
     
     // Give it a small delay before disconnecting
@@ -221,7 +235,11 @@ export const printZReportTCP = async (printerIp, reportInfo) => {
   // Native TCP
   try {
     const { client } = await TcpSocket.connect({ ipAddress: printerIp, port: 9100 });
-    await TcpSocket.send({ client, data: payload });
+    await TcpSocket.send({ 
+      client: client, 
+      data: payloadToLatin1Base64(payload),
+      encoding: 'base64'
+    });
     setTimeout(async () => { await TcpSocket.disconnect({ client }); }, 500);
     return { success: true };
   } catch (error) {
