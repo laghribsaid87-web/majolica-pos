@@ -19,7 +19,6 @@ import Manuel from './pages/Manuel';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SubscriptionExpired from './pages/SubscriptionExpired';
 import Terms from './pages/Terms';
-import SupportButton from './components/SupportButton';
 import { subscribeToAuthChanges, fetchSalonConfig, setSalonId, getSalonId } from './services/api';
 import { db } from './services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -185,7 +184,6 @@ function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <SupportButton />
     </BrowserRouter>
   );
 }

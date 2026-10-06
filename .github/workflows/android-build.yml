@@ -48,7 +48,8 @@ jobs:
       run: |
         keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass "password123" -keypass "password123" -dname "CN=Majolica, O=Majolica, C=MA"
         BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
-        $BUILD_TOOLS_DIR/apksigner sign --ks release.keystore --ks-key-alias release --ks-pass pass:"password123" --key-pass pass:"password123" --out app/build/outputs/apk/release/app-release-signed.apk app/build/outputs/apk/release/app-release-unsigned.apk
+        $BUILD_TOOLS_DIR/zipalign -v -p 4 app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/app-release-aligned.apk
+        $BUILD_TOOLS_DIR/apksigner sign --ks release.keystore --ks-key-alias release --ks-pass pass:"password123" --key-pass pass:"password123" --out app/build/outputs/apk/release/app-release-signed.apk app/build/outputs/apk/release/app-release-aligned.apk
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
