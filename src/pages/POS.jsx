@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Plus, Minus, Trash2, User, Wallet, Bell, X, Calendar, Lock } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, User, Wallet, Bell, X, Calendar, Lock, UserPlus } from 'lucide-react';
 import { saveOrder, subscribeToEmployees, subscribeToProducts, saveExpense, saveEmployee, fetchClubMembers, saveClubMember, subscribeToNewOnlineReservations, fetchSalonConfig, saveProduct } from '../services/api';
 import { printTicketTCP } from '../utils/printer';
 
@@ -43,6 +43,9 @@ const POS = () => {
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseCategory, setExpenseCategory] = useState('Petite Dépense');
   const [expenseEmployee, setExpenseEmployee] = useState('');
+  
+  // Client Modal State
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
 
   // Customization Mode State
   const posCustomMode = localStorage.getItem('pos_custom_mode_enabled') === 'true';
@@ -336,6 +339,8 @@ const POS = () => {
             shopAddress: localStorage.getItem('ticket_address') || 'Tanger, Maroc',
             shopPhone: localStorage.getItem('ticket_phone') || '06 00 00 00 00',
             qrLink: localStorage.getItem('ticket_qr_link') || '',
+            qrMessage: localStorage.getItem('ticket_qr_message') || 'Scannez pour réserver',
+            thankYouMessage: localStorage.getItem('ticket_thank_you_message') || 'Merci pour votre visite!',
             paperSize: localStorage.getItem('printer_paper_size') || '80mm',
             employee: selectedEmployees.join(' & '),
             clientName: clientName,
@@ -569,6 +574,25 @@ const POS = () => {
           </div>
         </div>
 
+        {/* New Client Button Area */}
+        <div className="px-6 py-3 border-b border-gray-100 bg-white">
+          <button 
+            className={`w-full py-2.5 px-4 rounded-xl border font-bold transition-colors flex justify-center items-center gap-2 text-sm ${clientName || clientPhone ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'border-dashed border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-accent'}`}
+            onClick={() => setIsClientModalOpen(true)}
+          >
+            {clientName || clientPhone ? (
+              <>
+                <UserPlus size={16} /> 
+                {clientName || 'Client sans nom'} {clientPhone ? `- ${clientPhone}` : ''} {isClientClub ? '⭐' : ''}
+              </>
+            ) : (
+              <>
+                <UserPlus size={16} /> Ajouter Client (Optionnel)
+              </>
+            )}
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-4 pr-4 custom-scrollbar" style={posCustomMode ? { zoom: cartScale } : {}}>
           {cart.length === 0 ? (
             <div className="text-gray-400 text-center mt-10">Le panier est vide</div>
@@ -613,13 +637,6 @@ const POS = () => {
             <div className="input-group mb-4">
               <label className="flex items-center justify-between text-sm w-full">
                 <span className="flex items-center gap-2"><User size={16} className="text-accent" /> Employée</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-purple-600 uppercase">Compte Fidélité</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={isClientClub} onChange={(e) => setIsClientClub(e.target.checked)} />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-500"></div>
-                  </label>
-                </div>
               </label>
               <div className="flex flex-wrap gap-2 mt-2">
                 {employees.map(emp => (
@@ -641,30 +658,7 @@ const POS = () => {
             </div>
           )}
 
-          {cart.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mb-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-              <div className="input-group m-0">
-                <input 
-                  type="text" 
-                  placeholder="Nom Cliente (Optionnel)" 
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="py-2 text-xs border-gray-200"
-                />
-              </div>
-              <div className="input-group m-0">
-                <input 
-                  type="tel" 
-                  placeholder="06 XX XX XX XX (Optionnel)" 
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  className="py-2 text-xs border-gray-200"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-between items-end mb-6">
+          {/* Client fields moved to modal */}          <div className="flex justify-between items-end mb-6">
             <span className="text-gray-500 font-bold uppercase tracking-widest text-sm">Total à payer</span>
             <span className="text-4xl font-black text-secondary leading-none">{finalTotal.toFixed(2)} <span className="text-xl">DH</span></span>
           </div>
@@ -977,10 +971,19 @@ const POS = () => {
             </div>
           </div>
           
-          <div className="text-center font-bold">
-            MERCI DE VOTRE VISITE !<br/>
-            A TRES BIENTOT
+          <div className="text-center font-bold mb-4">
+            {(localStorage.getItem('ticket_thank_you_message') || 'MERCI DE VOTRE VISITE !')}
           </div>
+          
+          {(localStorage.getItem('ticket_qr_link')) && (
+            <div className="text-center mt-4">
+              <div className="font-bold text-sm mb-2">{(localStorage.getItem('ticket_qr_message') || 'Scannez pour réserver')}</div>
+              {/* QR Code placeholder for browser print, requires a library like react-qr-code if we wanted actual render */}
+              <div className="text-[10px] text-gray-500 border border-dashed border-gray-300 p-2 inline-block">
+                Lien: {localStorage.getItem('ticket_qr_link')}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1119,6 +1122,81 @@ const POS = () => {
           </div>
         </div>
       )}
+      {/* Client Selection Modal */}
+      {isClientModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
+          <div className="glass w-full max-w-md p-6 shadow-2xl rounded-3xl relative">
+            <button 
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors"
+              onClick={() => setIsClientModalOpen(false)}
+            >
+              <X size={20} />
+            </button>
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+                <UserPlus size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-secondary text-center">Ajouter un Client</h2>
+              <p className="text-sm text-gray-500 text-center mt-1">Saisissez les infos du client pour ce ticket.</p>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div className="input-group">
+                <label>Nom Cliente (Optionnel)</label>
+                <input 
+                  type="text" 
+                  placeholder="Ex: Fatima" 
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div className="input-group">
+                <label>Numéro de téléphone (Optionnel)</label>
+                <input 
+                  type="tel" 
+                  placeholder="Ex: 06 12 34 56 78" 
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between bg-purple-50 p-4 rounded-xl border border-purple-100 mt-2">
+                <div>
+                  <span className="block text-sm font-bold text-purple-700">Compte Fidélité</span>
+                  <span className="block text-xs text-purple-500 mt-0.5">Le client cumule des points</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={isClientClub} onChange={(e) => setIsClientClub(e.target.checked)} />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button 
+                className="btn bg-gray-200 text-gray-700 flex-1 py-3 text-sm font-bold hover:bg-gray-300"
+                onClick={() => {
+                  setClientName('');
+                  setClientPhone('');
+                  setIsClientClub(false);
+                  setIsClientModalOpen(false);
+                }}
+              >
+                Vider
+              </button>
+              <button 
+                className="btn btn-primary flex-2 w-[60%] py-3 text-sm font-bold"
+                onClick={() => setIsClientModalOpen(false)}
+              >
+                Valider
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

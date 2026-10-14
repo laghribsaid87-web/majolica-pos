@@ -14,6 +14,10 @@ dist-ssr
 server/.wwebjs_auth/
 server/.wwebjs_cache/
 server/node_modules/
+majolica-whatsapp-server/.wwebjs_auth/
+majolica-whatsapp-server/.wwebjs_cache/
+majolica-whatsapp-server/node_modules/
+majolica-whatsapp-server/.env
 release-apk/
 scratch/
 

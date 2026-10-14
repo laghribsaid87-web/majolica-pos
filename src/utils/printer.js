@@ -108,9 +108,12 @@ export const printTicketTCP = async (printerIp, ticketInfo) => {
     payload += divider;
   }
 
-  payload += alignCenter + textBold + "Merci pour votre visite!\n\n" + textNormal;
+  payload += alignCenter + textBold + `${ticketInfo.thankYouMessage || 'Merci pour votre visite!'}\n\n` + textNormal;
   
   if (qrLink) {
+    if (ticketInfo.qrMessage) {
+      payload += alignCenter + textBold + `${ticketInfo.qrMessage}\n` + textNormal;
+    }
     payload += getQrCodeCommands(qrLink);
   }
   
@@ -182,7 +185,7 @@ export const printZReportTCP = async (printerIp, reportInfo) => {
     throw new Error("L'adresse IP dyal l'imprimante makhasshach tkon khawya.");
   }
 
-  const { shopName, date, totalSales, cashSales, cardSales, totalExpenses, ordersCount, paperSize } = reportInfo;
+  const { shopName, date, period, totalSales, cashSales, cardSales, totalExpenses, ordersCount, paperSize } = reportInfo;
 
   const maxWidth = paperSize === '58mm' ? 32 : 48;
   const divider = "-".repeat(maxWidth) + "\n\n";
@@ -201,7 +204,11 @@ export const printZReportTCP = async (printerIp, reportInfo) => {
   payload += `(Rapport X)\n\n`;
   
   // Info
-  payload += alignLeft + textNormal + `Date: ${dateStr}\nHeure: ${timeStr}\n`;
+  payload += alignLeft + textNormal + `Impression: ${dateStr} a ${timeStr}\n`;
+  if (period) {
+    // Basic conversion for "Aujourd'hui" -> ASCII safe if needed, though standard print usually works
+    payload += `Periode: ${period}\n`;
+  }
   payload += divider;
   
   // Stats

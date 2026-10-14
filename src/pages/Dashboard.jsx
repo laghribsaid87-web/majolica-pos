@@ -4,7 +4,7 @@ import { fetchHistory, fetchExpenses, fetchEmployees, fetchSalonConfig, saveOrde
 import { db, isFirebaseConfigured } from '../services/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { format, isToday, isYesterday, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
-import { printZReportTCP } from '../utils/printer';
+import { printZReportTCP, printTicketTCP } from '../utils/printer';
 
 const Dashboard = () => {
   const [history, setHistory] = useState([]);
@@ -312,9 +312,15 @@ const Dashboard = () => {
                 alert("Veuillez configurer l'adresse IP de l'imprimante dans les Paramètres pour imprimer le Rapport Z.");
                 return;
               }
+              let periodStr = "Aujourd'hui";
+              if (dateFilter === 'yesterday') periodStr = "Hier";
+              else if (dateFilter === 'all') periodStr = "Toutes les dates";
+              else if (dateFilter === 'custom') periodStr = `Du ${format(new Date(customStartDate), 'dd/MM/yyyy')} au ${format(new Date(customEndDate), 'dd/MM/yyyy')}`;
+
               const reportInfo = {
                 shopName: localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS',
                 date: new Date(),
+                period: periodStr,
                 totalSales: totalSales,
                 cashSales: totalSales, // everything is cash for now
                 cardSales: 0,
@@ -884,7 +890,41 @@ const Dashboard = () => {
                               ))}
                             </td>
                             <td className="p-3 text-sm font-bold text-accent text-right">{item.total?.toFixed(2)} DH</td>
-                            <td className="p-3 text-center">
+                            <td className="p-3 text-center flex items-center justify-center gap-2">
+                              <button
+                                className="p-1.5 text-gray-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="Réimprimer le ticket"
+                                onClick={async () => {
+                                  const savedIp = localStorage.getItem('printer_ip');
+                                  if (!savedIp) {
+                                    alert("Imprimante non configurée ! Allez dans Paramètres.");
+                                    return;
+                                  }
+                                  const ticketInfo = {
+                                    shopName: localStorage.getItem('ticket_shop_name') || 'MAJOLICA POS',
+                                    shopAddress: localStorage.getItem('ticket_address') || 'Tanger, Maroc',
+                                    shopPhone: localStorage.getItem('ticket_phone') || '06 00 00 00 00',
+                                    qrLink: localStorage.getItem('ticket_qr_link') || '',
+                                    qrMessage: localStorage.getItem('ticket_qr_message') || 'Scannez pour réserver',
+                                    thankYouMessage: localStorage.getItem('ticket_thank_you_message') || 'Merci pour votre visite!',
+                                    paperSize: localStorage.getItem('printer_paper_size') || '80mm',
+                                    employee: item.employeeName || '',
+                                    clientName: item.clientName || '',
+                                    cart: (item.items || []).map(i => ({ name: i.name, qty: i.qty, totalPrice: (i.price * i.qty).toFixed(2) })),
+                                    total: item.total || 0,
+                                    amountReceived: item.total || 0,
+                                    change: 0,
+                                    date: new Date(item.timestamp || item.date)
+                                  };
+                                  try {
+                                    await printTicketTCP(savedIp, ticketInfo);
+                                  } catch (e) {
+                                    alert(e.message);
+                                  }
+                                }}
+                              >
+                                <Printer size={16} />
+                              </button>
                               <button
                                 className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Supprimer cette vente"

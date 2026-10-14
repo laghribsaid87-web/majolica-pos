@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { useNavigate } from 'react-router-dom';
-import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2, BookOpen, Image as ImageIcon } from 'lucide-react';
+import { Smartphone, CheckCircle, Loader, ShieldAlert, Phone, Save, UserPlus, AlertCircle, Printer, Gift, Plus, Trash2, BookOpen, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { fetchAdminPhone, saveAdminPhone, registerUser, fetchSalonConfig, saveSalonConfig, fetchProducts, migrateLocalDataToFirebase } from '../services/api';
 import imageCompression from 'browser-image-compression';
 
@@ -40,6 +40,8 @@ const Settings = () => {
   const [ticketAddress, setTicketAddress] = useState('Tanger, Maroc');
   const [ticketPhone, setTicketPhone] = useState('06 00 00 00 00');
   const [ticketQrLink, setTicketQrLink] = useState('');
+  const [ticketQrMessage, setTicketQrMessage] = useState('Scannez pour réserver');
+  const [ticketThankYouMessage, setTicketThankYouMessage] = useState('Merci pour votre visite!');
   const [printerPaperSize, setPrinterPaperSize] = useState('80mm');
   const [ticketLogo, setTicketLogo] = useState('');
   const [isPrinterSaved, setIsPrinterSaved] = useState(false);
@@ -61,6 +63,8 @@ const Settings = () => {
       setTicketAddress(config?.ticketAddress || localStorage.getItem('ticket_address') || 'Tanger, Maroc');
       setTicketPhone(config?.ticketPhone || localStorage.getItem('ticket_phone') || '06 00 00 00 00');
       setTicketQrLink(config?.ticketQrLink || localStorage.getItem('ticket_qr_link') || '');
+      setTicketQrMessage(config?.ticketQrMessage || localStorage.getItem('ticket_qr_message') || 'Scannez pour réserver');
+      setTicketThankYouMessage(config?.ticketThankYouMessage || localStorage.getItem('ticket_thank_you_message') || 'Merci pour votre visite!');
       setPrinterPaperSize(config?.printerPaperSize || localStorage.getItem('printer_paper_size') || '80mm');
       setTicketLogo(config?.ticketLogo || '');
     });
@@ -87,6 +91,8 @@ const Settings = () => {
       ticketAddress,
       ticketPhone,
       ticketQrLink,
+      ticketQrMessage,
+      ticketThankYouMessage,
       printerPaperSize,
       ticketLogo
     });
@@ -101,6 +107,8 @@ const Settings = () => {
     localStorage.setItem('ticket_address', ticketAddress);
     localStorage.setItem('ticket_phone', ticketPhone);
     localStorage.setItem('ticket_qr_link', ticketQrLink);
+    localStorage.setItem('ticket_qr_message', ticketQrMessage);
+    localStorage.setItem('ticket_thank_you_message', ticketThankYouMessage);
     localStorage.setItem('printer_paper_size', printerPaperSize);
     
     await handleSaveFixedCharges(); // Save all to Firebase
@@ -229,6 +237,26 @@ const Settings = () => {
             className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 ml-auto`}
           >
             <BookOpen size={18} /> Manuel d'Utilisation
+          </button>
+          <button 
+            onClick={() => {
+              if (window.confirm("Voulez-vous vraiment actualiser l'application ? Cela va vider le cache et recharger la page pour afficher la dernière version (Mise à jour).")) {
+                if ('caches' in window) {
+                  caches.keys().then((names) => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    })
+                  }).then(() => {
+                    window.location.reload(true);
+                  });
+                } else {
+                  window.location.reload(true);
+                }
+              }
+            }}
+            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 whitespace-nowrap transition-all bg-orange-500 text-white hover:bg-orange-600 border border-orange-600`}
+          >
+            <RefreshCw size={18} /> Mettre à jour l'App
           </button>
         </div>
 
@@ -617,9 +645,17 @@ const Settings = () => {
                 <input type="text" value={ticketPhone} onChange={(e) => setTicketPhone(e.target.value)} className="input-field" placeholder="Ex: 06 00 00 00 00" />
               </div>
               <div className="input-group">
+                <label>Message de remerciement</label>
+                <input type="text" value={ticketThankYouMessage} onChange={(e) => setTicketThankYouMessage(e.target.value)} className="input-field" placeholder="Ex: Merci pour votre visite!" />
+              </div>
+              <div className="input-group">
                 <label>Lien Réservation (QR Code)</label>
-                <input type="text" value={ticketQrLink} onChange={(e) => setTicketQrLink(e.target.value)} className="input-field" placeholder="Ex: https://majolicabeauty.com/booking" />
+                <input type="text" value={ticketQrLink} onChange={(e) => setTicketQrLink(e.target.value)} className="input-field" placeholder="Ex: https://majolica.web.app/reserver" />
                 <p className="text-xs text-gray-400 mt-1">Un code QR sera généré à la fin du ticket si ce champ est rempli.</p>
+              </div>
+              <div className="input-group">
+                <label>Message au-dessus du QR Code</label>
+                <input type="text" value={ticketQrMessage} onChange={(e) => setTicketQrMessage(e.target.value)} className="input-field" placeholder="Ex: Scannez pour réserver" />
               </div>
 
               <div className="input-group">

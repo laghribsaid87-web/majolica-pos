@@ -376,31 +376,21 @@ export const saveSalonConfig = async (config) => {
 };
 
 export const fetchHistory = async () => {
+  const local = localStorage.getItem('majolica_history');
+  if (local && local.length > 5) {
+    const parsed = JSON.parse(local);
+    if (parsed.length > 0) return parsed.filter(d => !d.deletedAt);
+  }
+
   if (isFirebaseConfigured) {
     try {
       const q = query(collection(db, 'history'), where('salonId', '==', getSalonId()));
       const snap = await getDocs(q);
-      if (!snap.empty) {
-        return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => !d.deletedAt);
-      } else {
-        const local = localStorage.getItem('majolica_history');
-        if (local) {
-          const parsed = JSON.parse(local);
-          if (parsed.length > 0) {
-            console.log("Migrating history to Firebase...");
-            for (const item of parsed) {
-              item.id = item.id || Date.now().toString() + Math.random().toString(36).substr(2, 5);
-              item.salonId = getSalonId();
-              await setDoc(doc(db, 'history', item.id.toString()), item);
-            }
-            return parsed.filter(d => !d.deletedAt);
-          }
-        }
-      }
+      const data = snap.empty ? [] : snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      localStorage.setItem('majolica_history', JSON.stringify(data));
+      return data.filter(d => !d.deletedAt);
     } catch (e) { console.error("Firebase err", e); }
   }
-  const local = localStorage.getItem('majolica_history');
-  if (local) return JSON.parse(local).filter(d => !d.deletedAt);
   return [];
 };
 
@@ -420,59 +410,57 @@ export const fetchDeletedHistory = async () => {
 };
 
 export const softDeleteHistory = async (id) => {
+  const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+  const idx = history.findIndex(h => h.id.toString() === id.toString());
+  if (idx !== -1) {
+    history[idx].deletedAt = new Date().toISOString();
+    localStorage.setItem('majolica_history', JSON.stringify(history));
+  }
   if (isFirebaseConfigured) {
     try {
       await updateDoc(doc(db, 'history', id.toString()), { deletedAt: new Date().toISOString() });
     } catch (e) { console.error("Firebase err", e); }
-  } else {
-    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
-    const idx = history.findIndex(h => h.id.toString() === id.toString());
-    if (idx !== -1) {
-      history[idx].deletedAt = new Date().toISOString();
-      localStorage.setItem('majolica_history', JSON.stringify(history));
-    }
   }
 };
 
 export const restoreHistory = async (id) => {
+  const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+  const idx = history.findIndex(h => h.id.toString() === id.toString());
+  if (idx !== -1) {
+    delete history[idx].deletedAt;
+    localStorage.setItem('majolica_history', JSON.stringify(history));
+  }
   if (isFirebaseConfigured) {
     try {
       await updateDoc(doc(db, 'history', id.toString()), { deletedAt: null });
     } catch (e) { console.error("Firebase err", e); }
-  } else {
-    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
-    const idx = history.findIndex(h => h.id.toString() === id.toString());
-    if (idx !== -1) {
-      delete history[idx].deletedAt;
-      localStorage.setItem('majolica_history', JSON.stringify(history));
-    }
   }
 };
 
 export const hardDeleteHistory = async (id) => {
+  const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+  const newHistory = history.filter(h => h.id.toString() !== id.toString());
+  localStorage.setItem('majolica_history', JSON.stringify(newHistory));
+
   if (isFirebaseConfigured) {
     try {
       await deleteDoc(doc(db, 'history', id.toString()));
     } catch (e) { console.error("Firebase err", e); }
-  } else {
-    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
-    const newHistory = history.filter(h => h.id.toString() !== id.toString());
-    localStorage.setItem('majolica_history', JSON.stringify(newHistory));
   }
 };
 
 export const updateHistoryEmployee = async (id, newEmployeeName) => {
+  const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
+  const idx = history.findIndex(h => h.id.toString() === id.toString());
+  if (idx !== -1) {
+    history[idx].employeeName = newEmployeeName;
+    localStorage.setItem('majolica_history', JSON.stringify(history));
+  }
+
   if (isFirebaseConfigured) {
     try {
       await updateDoc(doc(db, 'history', id.toString()), { employeeName: newEmployeeName });
     } catch (e) { console.error("Firebase err", e); }
-  } else {
-    const history = JSON.parse(localStorage.getItem('majolica_history')) || [];
-    const idx = history.findIndex(h => h.id.toString() === id.toString());
-    if (idx !== -1) {
-      history[idx].employeeName = newEmployeeName;
-      localStorage.setItem('majolica_history', JSON.stringify(history));
-    }
   }
 };
 
@@ -481,14 +469,15 @@ export const saveOrder = async (orderData) => {
   orderData.timestamp = orderData.timestamp || new Date().toISOString();
   orderData.salonId = getSalonId();
   
+  // ALWAYS save locally to avoid losing data and to save reads later
+  const existingHistory = JSON.parse(localStorage.getItem('majolica_history')) || [];
+  existingHistory.push(orderData);
+  localStorage.setItem('majolica_history', JSON.stringify(existingHistory));
+
   if (isFirebaseConfigured) {
     try {
       await setDoc(doc(db, 'history', orderData.id), orderData);
     } catch (e) { console.error("Firebase err", e); }
-  } else {
-    const existingHistory = JSON.parse(localStorage.getItem('majolica_history')) || [];
-    existingHistory.push(orderData);
-    localStorage.setItem('majolica_history', JSON.stringify(existingHistory));
   }
   
   // Notification Patronne
@@ -862,56 +851,63 @@ export const deleteClubMember = async (phone) => {
 // --- EXPENSES MANAGEMENT ---
 
 export const fetchExpenses = async () => {
+  const local = localStorage.getItem('majolica_expenses');
+  if (local && local.length > 5) {
+     const parsed = JSON.parse(local);
+     if (parsed.length > 0) return parsed.filter(d => !d.deletedAt);
+  }
+
   if (isFirebaseConfigured) {
     try {
       const q = query(collection(db, 'expenses'), where('salonId', '==', getSalonId()));
       const snap = await getDocs(q);
-      if (!snap.empty) {
-        return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(e => !e.deletedAt);
-      }
+      const data = snap.empty ? [] : snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      localStorage.setItem('majolica_expenses', JSON.stringify(data));
+      return data.filter(d => !d.deletedAt);
     } catch (e) { console.error("Firebase err", e); }
   }
-  return JSON.parse(localStorage.getItem('majolica_expenses')) || [];
+  return [];
 };
 
 export const saveExpense = async (expense) => {
   expense.id = expense.id || Date.now().toString();
   expense.salonId = getSalonId();
+  
+  const expensesList = JSON.parse(localStorage.getItem('majolica_expenses')) || [];
+  expensesList.push(expense);
+  localStorage.setItem('majolica_expenses', JSON.stringify(expensesList));
+
   if (isFirebaseConfigured) {
     try {
       await setDoc(doc(db, 'expenses', expense.id.toString()), expense);
-      return;
     } catch (e) { console.error("Firebase err", e); }
   }
-  const expensesList = await fetchExpenses();
-  expensesList.push(expense);
-  localStorage.setItem('majolica_expenses', JSON.stringify(expensesList));
 };
 
 export const deleteExpense = async (id) => {
+  let expensesList = JSON.parse(localStorage.getItem('majolica_expenses')) || [];
+  expensesList = expensesList.filter(e => e.id.toString() !== id.toString());
+  localStorage.setItem('majolica_expenses', JSON.stringify(expensesList));
+
   if (isFirebaseConfigured) {
     try {
       await updateDoc(doc(db, 'expenses', id.toString()), { deletedAt: new Date().toISOString() });
-      return;
     } catch (e) { console.error("Firebase err", e); }
   }
-  let expensesList = await fetchExpenses();
-  expensesList = expensesList.filter(e => e.id.toString() !== id.toString());
-  localStorage.setItem('majolica_expenses', JSON.stringify(expensesList));
 };
 
 export const updateExpense = async (updatedExpense) => {
-  if (isFirebaseConfigured) {
-    try {
-      await updateDoc(doc(db, 'expenses', updatedExpense.id.toString()), updatedExpense);
-      return;
-    } catch (e) { console.error("Firebase err", e); }
-  }
-  const expensesList = await fetchExpenses();
+  const expensesList = JSON.parse(localStorage.getItem('majolica_expenses')) || [];
   const index = expensesList.findIndex(e => e.id.toString() === updatedExpense.id.toString());
   if (index !== -1) {
     expensesList[index] = updatedExpense;
     localStorage.setItem('majolica_expenses', JSON.stringify(expensesList));
+  }
+
+  if (isFirebaseConfigured) {
+    try {
+      await updateDoc(doc(db, 'expenses', updatedExpense.id.toString()), updatedExpense);
+    } catch (e) { console.error("Firebase err", e); }
   }
 };
 
